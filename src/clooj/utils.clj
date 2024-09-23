@@ -1,23 +1,24 @@
-; Copyright (c) 2011-2013, Arthur Edelstein
-; All rights reserved.
-; Eclipse Public License 1.0
-; arthuredelstein@gmail.com
+;; Copyright (c) 2011-2013, Arthur Edelstein
+;; All rights reserved.
+;; Eclipse Public License 1.0
+;; arthuredelstein@gmail.com
 
 (ns clooj.utils
-  (:require [clojure.string :as string])
-  (:import (java.awt FileDialog Point Window)
-           (java.awt.event ActionListener MouseAdapter)
-           (java.util.prefs Preferences)
-           (java.security MessageDigest)
-           (java.io ByteArrayInputStream ByteArrayOutputStream
-                    File FilenameFilter BufferedReader
-                    InputStreamReader
-                    ObjectInputStream ObjectOutputStream
-                    OutputStream PrintStream)
-           (javax.swing AbstractAction JButton JFileChooser JMenu JMenuItem BorderFactory
-                        JOptionPane JSplitPane KeyStroke SpringLayout SwingUtilities)
-           (javax.swing.event CaretListener DocumentListener UndoableEditListener)
-           (javax.swing.undo UndoManager)))
+  (:require
+   [clojure.string :as string])
+  (:import
+   (java.awt FileDialog Point Window)
+   (java.awt.event ActionListener MouseAdapter)
+   (java.io BufferedReader ByteArrayInputStream ByteArrayOutputStream File FilenameFilter InputStreamReader ObjectInputStream ObjectOutputStream OutputStream PrintStream Writer)
+   (java.lang Process)
+   (java.security MessageDigest)
+   (java.util.prefs Preferences)
+   (javax.swing AbstractAction BorderFactory JButton JComponent JFileChooser JFrame JMenu JMenuItem JOptionPane JSplitPane JViewport KeyStroke SpringLayout SwingUtilities)
+   (javax.swing.event CaretListener DocumentListener UndoableEditListener)
+   (javax.swing.undo UndoManager)
+   (org.fife.ui.rsyntaxtextarea RSyntaxDocument RSyntaxTextArea)))
+
+(set! *warn-on-reflection* true)
 
 ;; general
 
@@ -65,16 +66,16 @@
 (def clooj-prefs (.. Preferences userRoot
                      (node "clooj") (node "c6833c87-9631-44af-af83-f417028ea7aa")))
 
-(defn partition-str [n s]
+(defn partition-str [n ^String s]
   (let [l (.length s)]
     (for [i (range 0 l n)]
-      (.substring s i (Math/min l (+ (int i) (int n)))))))
+      (.substring s i (Math/min (long l) (+ (int i) (int n)))))))
 
 (def pref-max-bytes (* 3/4 Preferences/MAX_VALUE_LENGTH))
 
 (defn write-value-to-prefs
   "Writes a pure clojure data structure to Preferences object."
-  [prefs key value]
+  [^Preferences prefs key value]
   (let [chunks (partition-str pref-max-bytes (with-out-str (pr value)))
         node (. prefs node key)]
     (.clear node)
@@ -83,17 +84,17 @@
 
 (defn read-value-from-prefs
   "Reads a pure clojure data structure from Preferences object."
-  [prefs key]
+  [^Preferences prefs ^String key]
   (when-not (.endsWith key "/")
     (let [node (.node prefs key)
-          s (apply str
-                   (for [i (range (count (. node keys)))]
-                     (.get node (str i) nil)))]
+          ^String s (apply str
+                           (for [i (range (count (. node keys)))]
+                             (.get node (str i) nil)))]
       (when (and s (pos? (.length s))) (read-string s)))))
 
 (defn write-obj-to-prefs
   "Writes a java object to a Preferences object."
-  [prefs key obj]
+  [^Preferences prefs key obj]
   (let [bos (ByteArrayOutputStream.)
         os (ObjectOutputStream. bos)
         node (.node prefs key)]
@@ -102,7 +103,7 @@
 
 (defn read-obj-from-prefs
   "Reads a java object from a Preferences object."
-  [prefs key]
+  [^Preferences prefs key]
   (let [node (.node prefs key)
         bis (ByteArrayInputStream. (. node getByteArray "0" nil))
         os (ObjectInputStream. bis)]
@@ -110,7 +111,7 @@
 
 ;; identify OS
 
-(defn get-os []
+(defn get-os ^String []
   (string/lower-case (System/getProperty "os.name")))
 
 (def is-win
@@ -125,14 +126,14 @@
 
 ;; swing layout
 
-(defn put-constraint [comp1 edge1 comp2 edge2 dist]
+(defn put-constraint [^java.awt.Component comp1 edge1 ^java.awt.Component comp2 edge2 dist]
   (let [edges {:n SpringLayout/NORTH
                :w SpringLayout/WEST
                :s SpringLayout/SOUTH
-               :e SpringLayout/EAST}]
-    (.. comp1 getParent getLayout
-        (putConstraint (edges edge1) comp1
-                       dist (edges edge2) comp2))))
+               :e SpringLayout/EAST}
+        ^SpringLayout layout (.. comp1 getParent getLayout
+                                 )]
+    (.putConstraint layout ^String (edges edge1) comp1 (int dist) ^String (edges edge2) comp2)))
 
 (defn put-constraints [comp & args]
   (let [args (partition 3 args)
@@ -143,94 +144,94 @@
   "Distance from edges of parent comp args"
   [comp & args]
   (apply put-constraints comp
-         (flatten (map #(cons (.getParent comp) %) (partition 2 args)))))
+         (flatten (map #(cons (.getParent ^JComponent comp) %) (partition 2 args)))))
 
 ;; text components
 
-(defn get-line-text [text-pane line]
+(defn get-line-text [^RSyntaxTextArea text-pane line]
   (let [start (.getLineStartOffset text-pane line)
         length (- (.getLineEndOffset text-pane line) start)]
     (.. text-pane getDocument (getText start length))))
 
 (defn append-text
   ([text-pane text scroll-to-end?]
-    (append-text text-pane text))
-  ([text-pane text]
-    (.append text-pane text)))
+   (append-text text-pane text))
+  ([^RSyntaxTextArea text-pane text]
+   (.append text-pane text)))
 
-(defn get-coords [text-comp offset]
+(defn get-coords [^RSyntaxTextArea text-comp offset]
   (let [row (.getLineOfOffset text-comp offset)
         col (- offset (.getLineStartOffset text-comp row))]
     {:row row :col col}))
 
-(defn get-caret-coords [text-comp]
+(defn get-caret-coords [^RSyntaxTextArea text-comp]
   (get-coords text-comp (.getCaretPosition text-comp)))
 
 (defn add-text-change-listener
   "Executes f whenever text is changed in text component."
-  [text-comp f]
+  [^RSyntaxTextArea text-comp f]
   (.addDocumentListener
-    (.getDocument text-comp)
-    (reify DocumentListener
-      (insertUpdate [this evt] (f text-comp))
-      (removeUpdate [this evt] (f text-comp))
-      (changedUpdate [this evt]))))
+   (.getDocument text-comp)
+   (reify DocumentListener
+     (insertUpdate [this evt] (f text-comp))
+     (removeUpdate [this evt] (f text-comp))
+     (changedUpdate [this evt]))))
 
-(defn remove-text-change-listeners [text-comp]
+(defn remove-text-change-listeners [^RSyntaxTextArea text-comp]
   (let [d (.getDocument text-comp)]
-    (doseq [l (.getDocumentListeners d)]
+    (doseq [l (.getDocumentListeners ^RSyntaxDocument d)]
       (.removeDocumentListener d l))))
 
-(defn get-text-str [text-comp]
-  (let [doc (.getDocument text-comp)]
+(defn get-text-str [^RSyntaxTextArea text-comp]
+  (let [^RSyntaxDocument doc (.getDocument text-comp)]
     (.getText doc 0 (.getLength doc))))
 
-(defn add-caret-listener [text-comp f]
+(defn add-caret-listener [^RSyntaxTextArea text-comp f]
   (.addCaretListener text-comp
                      (reify CaretListener (caretUpdate [this evt]
-                                                       (f text-comp)))))
+                                            (f text-comp)))))
 
-(defn set-selection [text-comp start end]
+(defn set-selection [^RSyntaxTextArea text-comp start end]
   (doto text-comp (.setSelectionStart start) (.setSelectionEnd end)))
 
-(defn scroll-to-pos [text-area offset]
+(defn scroll-to-pos [^RSyntaxTextArea text-area offset]
   (let [r (.modelToView text-area offset)
-        v (.getParent text-area)
+        ^JViewport v (.getParent text-area)
         l (.. v getViewSize height)
         h (.. v getViewRect height)]
     (when r
       (.setViewPosition v
                         (Point. 0 (min (- l h) (max 0 (- (.y r) (/ h 2)))))))))
 
-(defn scroll-to-line [text-comp line]
-    (let [text (.getText text-comp)
-          pos (inc (.length (string/join "\n" (take (dec line) (string/split text #"\n")))))]
-      (.setCaretPosition text-comp pos)
-      (scroll-to-pos text-comp pos)))
+(defn scroll-to-line [^RSyntaxTextArea text-comp line]
+  (let [text (.getText text-comp)
+        pos (inc (.length (string/join "\n" (take (dec line) (string/split text #"\n")))))]
+    (.setCaretPosition text-comp pos)
+    (scroll-to-pos text-comp pos)))
 
-(defn scroll-to-caret [text-comp]
+(defn scroll-to-caret [^RSyntaxTextArea text-comp]
   (scroll-to-pos text-comp (.getCaretPosition text-comp)))
 
-(defn focus-in-text-component [text-comp]
+(defn focus-in-text-component [^RSyntaxTextArea text-comp]
   (.requestFocusInWindow text-comp)
   (scroll-to-caret text-comp))
 
-(defn get-selected-lines [text-comp]
+(defn get-selected-lines [^RSyntaxTextArea text-comp]
   (let [row1 (.getLineOfOffset text-comp (.getSelectionStart text-comp))
         row2 (inc (.getLineOfOffset text-comp (.getSelectionEnd text-comp)))]
     (doall (range row1 row2))))
 
-(defn get-selected-line-starts [text-comp]
+(defn get-selected-line-starts [^RSyntaxTextArea text-comp]
   (map #(.getLineStartOffset text-comp %)
        (reverse (get-selected-lines text-comp))))
 
-(defn insert-in-selected-row-headers [text-comp txt]
+(defn insert-in-selected-row-headers [^RSyntaxTextArea text-comp txt]
   (awt-event
     (let [starts (get-selected-line-starts text-comp)
           document (.getDocument text-comp)]
       (dorun (map #(.insertString document % txt nil) starts)))))
 
-(defn remove-from-selected-row-headers [text-comp txt]
+(defn remove-from-selected-row-headers [^RSyntaxTextArea text-comp txt]
   (awt-event
     (let [len (count txt)
           document (.getDocument text-comp)]
@@ -238,45 +239,45 @@
         (when (= (.getText (.getDocument text-comp) start len) txt)
           (.remove document start len))))))
 
-(defn comment-out [text-comp]
+(defn comment-out [^RSyntaxTextArea text-comp]
   (insert-in-selected-row-headers text-comp ";"))
 
-(defn uncomment-out [text-comp]
+(defn uncomment-out [^RSyntaxTextArea text-comp]
   (remove-from-selected-row-headers text-comp ";"))
 
-(defn toggle-comment [text-comp]
+(defn toggle-comment [^RSyntaxTextArea text-comp]
   (if (= (.getText (.getDocument text-comp)
                    (first (get-selected-line-starts text-comp)) 1)
          ";")
     (uncomment-out text-comp)
     (comment-out text-comp)))
 
-(defn indent [text-comp]
+(defn indent [^RSyntaxTextArea text-comp]
   (when (.isFocusOwner text-comp)
     (insert-in-selected-row-headers text-comp " ")))
 
-(defn unindent [text-comp]
+(defn unindent [^RSyntaxTextArea text-comp]
   (when (.isFocusOwner text-comp)
     (remove-from-selected-row-headers text-comp " ")))
 
 ;; other gui
 
-(defn make-split-pane [comp1 comp2 horizontal divider-size resize-weight]
+(defn make-split-pane ^JSplitPane [comp1 comp2 horizontal divider-size resize-weight]
   (doto (JSplitPane. (if horizontal JSplitPane/HORIZONTAL_SPLIT
-                                    JSplitPane/VERTICAL_SPLIT)
+                         JSplitPane/VERTICAL_SPLIT)
                      true comp1 comp2)
-        (.setResizeWeight resize-weight)
-        (.setOneTouchExpandable false)
-        (.setBorder (BorderFactory/createEmptyBorder))
-        (.setDividerSize divider-size)))
+    (.setResizeWeight resize-weight)
+    (.setOneTouchExpandable false)
+    (.setBorder (BorderFactory/createEmptyBorder))
+    (.setDividerSize divider-size)))
 
 ;; keys
 
-(defn get-keystroke [key-shortcut]
+(defn get-keystroke [^String key-shortcut]
   (KeyStroke/getKeyStroke
-    (-> key-shortcut
-      (.replace "cmd1" (if (is-mac) "meta" "ctrl"))
-      (.replace "cmd2" (if (is-mac) "ctrl" "alt")))))
+   (-> key-shortcut
+       (.replace "cmd1" (if (is-mac) "meta" "ctrl"))
+       (.replace "cmd2" (if (is-mac) "ctrl" "alt")))))
 
 ;; actions
 
@@ -285,45 +286,44 @@
   such that action-fn is executed when pred function is
   true, but the parent (default) action when pred returns
   false."
-  [component input-key pred action-fn]
+  [^JComponent component input-key pred action-fn]
   (let [im (.getInputMap component)
         am (.getActionMap component)
         input-event (get-keystroke input-key)
         parent-action (when-let [tag (.get im input-event)]
                         (.get am tag))
         child-action
-          (proxy [AbstractAction] []
-            (actionPerformed [e]
-              (if (pred)
-                (action-fn)
-                (when parent-action
-                  (.actionPerformed parent-action e)))))
+        (proxy [AbstractAction] []
+          (actionPerformed [e]
+            (if (pred)
+              (action-fn)
+              (when parent-action
+                (.actionPerformed parent-action e)))))
         uuid (str (random-uuid))]
     (.put im input-event uuid)
     (.put am uuid child-action)))
 
-
-(defn attach-child-action-keys [comp & items]
+(defn attach-child-action-keys [^JComponent comp & items]
   (run! #(apply attach-child-action-key comp %) items))
 
 (defn attach-action-key
   "Maps an input-key on a swing component to an action-fn."
-  [component input-key action-fn]
+  [^JComponent component input-key action-fn]
   (attach-child-action-key component input-key
                            (constantly true) action-fn))
 
 (defn attach-action-keys
   "Maps input keys to action-fns."
-  [comp & items]
+  [^JComponent comp & items]
   (run! #(apply attach-action-key comp %) items))
 
 ;; buttons
 
-(defn create-button [text fn]
+(defn create-button [^String text fn]
   (doto (JButton. text)
     (.addActionListener
-      (reify ActionListener
-        (actionPerformed [_ _] (fn))))))
+     (reify ActionListener
+       (actionPerformed [_ _] (fn))))))
 
 ;; menus
 
@@ -357,82 +357,65 @@
 
 ;; mouse
 
-(defn on-click [comp num-clicks fun]
+(defn on-click [^JComponent comp num-clicks fun]
   (.addMouseListener comp
-    (proxy [MouseAdapter] []
-      (mouseClicked [event]
-        (when (== num-clicks (.getClickCount event))
-          (.consume event)
-          (fun))))))
+                     (proxy [MouseAdapter] []
+                       (mouseClicked [event]
+                         (when (== num-clicks (.getClickCount event))
+                           (.consume event)
+                           (fun))))))
 
 ;; undoability
 
-(defn make-undoable [text-area]
+(defn make-undoable [^RSyntaxTextArea text-area]
   (let [undoMgr (UndoManager.)]
     (.setLimit undoMgr 1000)
     (.. text-area getDocument (addUndoableEditListener
-        (reify UndoableEditListener
-          (undoableEditHappened [this evt] (.addEdit undoMgr (.getEdit evt))))))
+                               (reify UndoableEditListener
+                                 (undoableEditHappened [this evt] (.addEdit undoMgr (.getEdit evt))))))
     (attach-action-keys text-area
-      ["cmd1 Z" #(when (.canUndo undoMgr) (.undo undoMgr))]
-      ["cmd1 shift Z" #(when (.canRedo undoMgr) (.redo undoMgr))])))
+                        ["cmd1 Z" #(when (.canUndo undoMgr) (.undo undoMgr))]
+                        ["cmd1 shift Z" #(when (.canRedo undoMgr) (.redo undoMgr))])))
 
 
 ;; file handling
 
-(defn choose-file [parent title suffix load]
+(defn choose-file ^File [^JFrame parent ^String title suffix load]
   (let [dialog
-    (doto (FileDialog. parent title
-            (if load FileDialog/LOAD FileDialog/SAVE))
-      (.setFilenameFilter
-        (reify FilenameFilter
-          (accept [this _ name] (. name endsWith suffix))))
-      (.setVisible true))
-    d (.getDirectory dialog)
-    n (.getFile dialog)]
+        (doto (FileDialog. parent title
+                           (if load FileDialog/LOAD FileDialog/SAVE))
+          (.setFilenameFilter
+           (reify FilenameFilter
+             (accept [this _ name] (. name endsWith suffix))))
+          (.setVisible true))
+        d (.getDirectory dialog)
+        n (.getFile dialog)]
     (when (and d n)
       (File. d n))))
-
-;doesn't work with Java 7 -- see version below
-;(defn choose-directory [parent title]
-;  (if (is-mac)
-;    (let [dirs-on #(System/setProperty
-;                     "apple.awt.fileDialogForDirectories" (str %))]
-;      (dirs-on true)
-;        (let [f (choose-file parent title "" true)]
-;          (dirs-on false)
-;          (.getParentFile f)))
-;    (let [fc (JFileChooser.)
-;          last-open-dir (read-value-from-prefs clooj-prefs "last-open-dir")]
-;      (doto fc (.setFileSelectionMode JFileChooser/DIRECTORIES_ONLY)
-;               (.setDialogTitle title)
-;               (.setCurrentDirectory (if last-open-dir (File. last-open-dir) nil)))
-;       (if (= JFileChooser/APPROVE_OPTION (.showOpenDialog fc parent))
-;         (.getSelectedFile fc)))))
 
 (defn choose-directory [parent title]
   (let [fc (JFileChooser.)
         last-open-dir (read-value-from-prefs clooj-prefs "last-open-dir")]
     (doto fc (.setFileSelectionMode JFileChooser/DIRECTORIES_ONLY)
-      (.setDialogTitle title)
-      (.setCurrentDirectory (if last-open-dir (File. last-open-dir) nil)))
+          (.setDialogTitle title)
+          (.setCurrentDirectory (if last-open-dir (File. ^String last-open-dir) nil)))
     (when (= JFileChooser/APPROVE_OPTION (.showOpenDialog fc parent))
       (.getSelectedFile fc))))
 
 
-(defn get-directories [path]
-  (filter #(and (.isDirectory %)
-                (not (.startsWith (.getName %) ".")))
+(defn get-directories [^File path]
+  (filter #(and (.isDirectory ^File %)
+                (not (.startsWith (.getName ^File %) ".")))
           (.listFiles path)))
 
-(defn file-exists? [file]
+(defn file-exists? [^File file]
   (and file (.. file exists)))
 
 ;; tree seq on widgets (awt or swing)
 
 (defn widget-seq [^java.awt.Component comp]
   (tree-seq #(instance? java.awt.Container %)
-            #(seq (.getComponents %))
+            #(seq (.getComponents ^java.awt.Container %))
             comp))
 
 ;; saving and restoring window shape in preferences
@@ -441,24 +424,25 @@
   (for [comp components]
     (condp instance? comp
       Window
+      (let [comp ^Window comp]
         [:window {:x (.getX comp) :y (.getY comp)
-                  :w (.getWidth comp) :h (.getHeight comp)}]
+                  :w (.getWidth comp) :h (.getHeight comp)}])
       JSplitPane
-        [:split-pane {:location (.getDividerLocation comp)}]
+      [:split-pane {:location (.getDividerLocation ^JSplitPane comp)}]
       nil)))
 
 (defn watch-shape [components fun]
   (doseq [comp components]
     (condp instance? comp
       Window
-        (.addComponentListener comp
-          (proxy [java.awt.event.ComponentAdapter] []
-            (componentMoved [_] (fun))
-            (componentResized [_] (fun))))
+      (.addComponentListener ^Window comp
+                             (proxy [java.awt.event.ComponentAdapter] []
+                               (componentMoved [_] (fun))
+                               (componentResized [_] (fun))))
       JSplitPane
-        (.addPropertyChangeListener comp JSplitPane/DIVIDER_LOCATION_PROPERTY
-          (proxy [java.beans.PropertyChangeListener] []
-            (propertyChange [_] (fun))))
+      (.addPropertyChangeListener ^JSplitPane comp JSplitPane/DIVIDER_LOCATION_PROPERTY
+                                  (proxy [java.beans.PropertyChangeListener] []
+                                    (propertyChange [_] (fun))))
       nil)))
 
 (defn set-shape [components shape-data]
@@ -470,9 +454,9 @@
           (condp = (first shape)
             :window
             (let [{:keys [x y w h]} (second shape)]
-              (.setBounds comp x y w h))
+              (.setBounds ^Window comp x y w h))
             :split-pane
-            (.setDividerLocation comp (:location (second shape)))
+            (.setDividerLocation ^JSplitPane comp (int (:location (second shape))))
             nil))
         (catch Exception e nil)))
     (when (next comps)
@@ -507,28 +491,29 @@
                                 shape))))))
 
 (defn sha1-str [obj]
-   (let [bytes (.getBytes (with-out-str (pr obj)))]
-     (String. (.digest (MessageDigest/getInstance "MD") bytes))))
+  (let [^String s (with-out-str (pr obj))
+        bytes (.getBytes s)]
+    (String. (.digest (MessageDigest/getInstance "MD") bytes))))
 
 ;; streams, writers and readers
 
-(defn printstream-to-writer [writer]
+(defn printstream-to-writer [^Writer writer]
   (->
-    (proxy [OutputStream] []
-      (write
-        ([^bytes bs offset length]
-          (.write writer
-                  (.toCharArray (String. ^bytes bs "utf-8"))
-                  offset length))
-        ([b]
-          (.write writer b)))
-      (flush [] (.flush writer))
-      (close [] (.close writer)))
-    (PrintStream. true)))
+   (proxy [OutputStream] []
+     (write
+       ([^bytes bs offset length]
+        (.write writer
+                (.toCharArray (String. ^bytes bs "utf-8"))
+                (long offset) (long length)))
+       ([b]
+        (.write writer (int b))))
+     (flush [] (.flush writer))
+     (close [] (.close writer)))
+   (PrintStream. true)))
 
 (defn process-reader
   "Create a buffered reader from the output of a process."
-  [process]
+  [^Process process]
   (-> process
       .getInputStream
       InputStreamReader.
@@ -537,7 +522,7 @@
 (defn copy-input-stream-to-writer
   "Continuously copies all content from a java InputStream
    to a java Writer. Blocks until InputStream closes."
-  [input-stream writer]
+  [input-stream ^Writer writer]
   (let [reader (InputStreamReader. input-stream)]
     (loop []
       (let [c (.read reader)]

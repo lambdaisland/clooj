@@ -4,10 +4,11 @@
 ; arthuredelstein@gmail.com
 
 (ns clooj.repl.remote
-  (:import (java.io StringReader))
   (:require
-    [clojure.main :as m]
-    [clojure.pprint :as pp]))
+   [clojure.main :as m]
+   [clojure.pprint :as pp])
+  (:import
+   (java.io StringReader)))
 
 (def silence (atom false))
 

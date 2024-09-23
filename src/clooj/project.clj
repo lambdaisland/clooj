@@ -134,7 +134,7 @@
     (sort (filter #(.endsWith (.getName %) suffix)
                   (file-seq dir)))))
 
-(defn get-temp-file [^File orig]
+(defn get-temp-file ^File [^File orig]
   (when orig
     (io/file (str (.getAbsolutePath orig) "~"))))
 
@@ -195,7 +195,7 @@
       (save-expanded-paths tree))))
     ;))
 
-(defn get-selected-file-path [app]
+(defn get-selected-file-path ^String [app]
   (when-let [tree-path (-> app :docs-tree .getSelectionPaths first)]
     (-> tree-path .getLastPathComponent .getUserObject .getAbsolutePath)))
 

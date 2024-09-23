@@ -1,18 +1,20 @@
-; Copyright (c) 2011-2013, Arthur Edelstein
-; All rights reserved.
-; Eclipse Public License 1.0
-; arthuredelstein@gmail.com
+;; Copyright (c) 2011-2013, Arthur Edelstein
+;; All rights reserved.
+;; Eclipse Public License 1.0
+;; arthuredelstein@gmail.com
 
 (ns clooj.repl.external
-  (:import (java.net URL URLDecoder)
-           (java.io File PrintWriter)
-           (java.util.concurrent LinkedBlockingQueue))
-  (:require [clojure.java.io :as io]
-            [clooj.utils :as utils]
-            [clooj.help :as help]
-            [clooj.protocols :as protocols]
-            [clooj.repl.lein :as lein]
-            [clj-inspector.jars :as jars]))
+  (:require
+   [clj-inspector.jars :as jars]
+   [clojure.java.io :as io]
+   [clooj.help :as help]
+   [clooj.protocols :as protocols]
+   [clooj.repl.lein :as lein]
+   [clooj.utils :as utils])
+  (:import
+   (java.io File PrintWriter)
+   (java.net URL URLDecoder)
+   (java.util.concurrent LinkedBlockingQueue)))
 
 (defn own-clojure-jar
   "Locate the clojure jar being used by clooj (last resort)."
@@ -43,12 +45,12 @@
    given a particular project directory."
   [project-path]
   (try
-    (lein/lein-classpath-items project-path)
+    #_(lein/lein-classpath-items project-path)
     (catch Exception e
-           [(or (clojure-jar-location project-path)
-                (own-clojure-jar))
-            (str project-path "/lib/*")
-            (str project-path "/src")])))
+      [(or (clojure-jar-location project-path)
+           #_(own-clojure-jar))
+       (str project-path "/lib/*")
+       (str project-path "/src")])))
 
 (defn java-binary
   "Returns the fully-qualified path of the java binary."

@@ -1,29 +1,20 @@
-; Copyright (c) 2011-2013, Arthur Edelstein
-; All rights reserved.
-; Eclipse Public License 1.0
-; arthuredelstein@gmail.com
+;; Copyright (c) 2011-2013, Arthur Edelstein
+;; All rights reserved.
+;; Eclipse Public License 1.0
+;; arthuredelstein@gmail.com
 
 (ns clooj.repl.main
-  (:import (java.io
-             BufferedReader BufferedWriter
-             InputStreamReader
-             File PipedReader PipedWriter PrintWriter Writer
-                    StringReader PushbackReader)
-           (clojure.lang LineNumberingPushbackReader)
-           (java.awt Rectangle)
-           (java.net URL URLClassLoader URLDecoder)
-           (java.util.concurrent LinkedBlockingQueue))
-  (:require [clj-inspector.jars :as jars]
-            [clojure.string :as string]
-            [nrepl.core :as nrepl]
-            [clojure.java.io :as io]
-            [clooj.brackets :as brackets]
-            [clooj.help :as help]
-            [clooj.project :as project]
-            [clooj.repl.external :as external]
-            [clooj.repl.lein :as lein]
-            [clooj.protocols :as protocols]
-            [clooj.utils :as utils]))
+  (:require
+   [clojure.string :as string]
+   [clooj.brackets :as brackets]
+   [clooj.help :as help]
+   [clooj.project :as project]
+   [clooj.repl.external :as external]
+   [clooj.repl.internal :as internal]
+   [clooj.utils :as utils])
+  (:import
+   (clojure.lang LineNumberingPushbackReader)
+   (java.io File PrintWriter StringReader Writer)))
 
 #_{:clj-kondo/ignore [:use]}
 (use 'clojure.java.javadoc)
@@ -40,17 +31,17 @@
 (defn namespaces-from-code
   "Take tokens from text and extract namespace symbols."
   [text]
-  (->> text tokens (filter #(.contains % "/"))
-       (map #(.split % "/"))
+  (->> text tokens (filter #(.contains ^String % "/"))
+       (map #(.split ^String % "/"))
        (map first)
        (map #(when-not (empty? %) (symbol %)))
        (remove nil?)))
 
-(defn is-eof-ex? [throwable]
+(defn is-eof-ex? [^Throwable throwable]
   (and (instance? clojure.lang.LispReader$ReaderException throwable)
        (or
-         (.startsWith (.getMessage throwable) "java.lang.Exception: EOF while reading")
-         (.startsWith (.getMessage throwable) "java.io.IOException: Write end dead"))))
+        (.startsWith (.getMessage throwable) "java.lang.Exception: EOF while reading")
+        (.startsWith (.getMessage throwable) "java.io.IOException: Write end dead"))))
 
 (defn get-project-path [app]
   (when-let [repl (:repl app)]
@@ -60,9 +51,9 @@
   (.evaluate repl
     (str
       "(do"
-      (utils/local-clj-source "clooj/cemerick/pomegranate.clj")
-      (utils/local-clj-source "clooj/repl/remote.clj")
-      "(clooj.repl.remote/repl)"
+      ;; (utils/local-clj-source "clooj/cemerick/pomegranate.clj")
+      ;; (utils/local-clj-source "clooj/repl/remote.clj")
+      ;; "(clooj.repl.remote/repl)"
       ")"
       )))
 
@@ -85,37 +76,38 @@
   (let [read-string-code (read-string-at cmd line)
         short-file (last (.split file "/"))
         namespaces (namespaces-from-code cmd)]
-    ;(println namespaces)
+    ;;(println namespaces)
     (pr-str
-      `(do
-         (dorun (map #(try (clooj.cemerick.pomegranate/add-classpath %)
-                           (catch Exception e# (println e#))) '~classpaths))
-         (dorun (map #(try (require %) (catch Exception _#)) '~namespaces))
-         (binding [*source-path* ~short-file
-                   *file* ~file]
-           (last (map eval ~read-string-code)))))))
+     `(do
+        (dorun (map #(try (clooj.cemerick.pomegranate/add-classpath %)
+                          (catch Exception e# (println e#))) '~classpaths))
+        (dorun (map #(try (require %) (catch Exception _#)) '~namespaces))
+        (binding [*source-path* ~short-file
+                  *file* ~file]
+          (last (map eval ~read-string-code)))))))
 
 (defn print-to-repl
   [app cmd-str silent?]
-  (when-let [repl @(app :repl)]
+  (when-let [repl @(:repl app)]
     (.evaluate repl
                (if silent?
-                      (str "(clooj.repl.remote/silent" cmd-str ")")
-                      cmd-str))))
+                 (str "(clooj.repl.remote/silent" cmd-str ")")
+                 cmd-str))))
 
 (defn send-to-repl
-  ([app cmd silent?] (send-to-repl app cmd "NO_SOURCE_PATH" 0 silent?))
+  ([app cmd silent?]
+   (send-to-repl app cmd "NO_SOURCE_PATH" 0 silent?))
   ([app cmd file line silent?]
-    (let [cmd-ln (str cmd \newline)]
-      (when-not silent?
-        (utils/append-text (app :repl-out-text-area) cmd-ln))
-      (print-to-repl app cmd silent?)
-      (when-not silent?
-        (when (not= cmd (second @(:items repl-history)))
-          (swap! (:items repl-history)
-                 replace-first cmd)
-          (swap! (:items repl-history) conj ""))
-        (reset! (:pos repl-history) 0)))))
+   (let [cmd-ln (str cmd \newline)]
+     (when-not silent?
+       (utils/append-text (:repl-out-text-area app) cmd-ln))
+     (print-to-repl app cmd silent?)
+     (when-not silent?
+       (when (not= cmd (second @(:items repl-history)))
+         (swap! (:items repl-history)
+                replace-first cmd)
+         (swap! (:items repl-history) conj ""))
+       (reset! (:pos repl-history) 0)))))
 
 (defn relative-file [app]
   (let [prefix (str (get-project-path app) File/separator
@@ -136,9 +128,9 @@
          :end b}))))
 
 (defn send-selected-to-repl [app]
-  (let [ta (app :doc-text-area)
+  (let [ta     (:doc-text-area app)
         region (selected-region ta)
-        txt (:text region)]
+        txt    (:text region)]
     (if-not txt
       (.setText (app :arglist-label) "Malformed expression")
       (let [line (.getLineOfOffset ta (:start region))]
@@ -151,19 +143,19 @@
 
 (defn make-repl-writer [ta-out]
   (->
-    (proxy [Writer] []
-      (write
-        ([char-array offset length]
-          ;(println "char array:" (apply str char-array) (count char-array))
-          (utils/append-text ta-out (apply str char-array)))
-        ([t]
-          ;(println "t:" t)
-          (if (= Integer (type t))
-            (utils/append-text ta-out (str (char t)))
-            (utils/append-text ta-out (apply str t)))))
-      (flush [])
-      (close [] nil))
-    (PrintWriter. true)))
+   (proxy [Writer] []
+     (write
+       ([char-array offset length]
+        ;;(println "char array:" (apply str char-array) (count char-array))
+        (utils/append-text ta-out (apply str char-array)))
+       ([t]
+        ;;(println "t:" t)
+        (if (= Integer (type t))
+          (utils/append-text ta-out (str (char t)))
+          (utils/append-text ta-out (apply str t)))))
+     (flush [])
+     (close [] nil))
+   (PrintWriter. true)))
 
 (defn update-repl-in [app]
   (when (pos? (count @(:items repl-history)))
@@ -196,10 +188,10 @@
                        (str "\n=== Starting new REPL at " project-path " ===\n"))
     (let [classpath-items ;(lein/lein-classpath-items project-path)
           (external/repl-classpath-items project-path)
-          repl ;(lein/lein-repl project-path (app :repl-out-writer))
-          (external/repl project-path classpath-items
-                         (app :repl-out-writer))
-          ]
+          repl (internal/start-repl (:repl-out-writer app))
+          #_(lein/lein-repl project-path (app :repl-out-writer))
+          #_(external/repl project-path classpath-items
+                           (app :repl-out-writer))]
       (initialize-repl repl)
       (help/update-var-maps! project-path classpath-items)
       (reset! (:repl app) repl))))
@@ -228,12 +220,12 @@
                      txt (.getText ta-in)
                      trim-txt (string/trimr txt)]
                  (and
-                   (pos? (.length trim-txt))
-                   (<= (.length trim-txt)
-                       caret-pos)
-                   (= -1 (first (brackets/find-enclosing-brackets
-                                  txt
-                                  caret-pos)))))
+                  (pos? (.length trim-txt))
+                  (<= (.length trim-txt)
+                      caret-pos)
+                  (= -1 (first (brackets/find-enclosing-brackets
+                                txt
+                                caret-pos)))))
         submit #(when-let [txt (.getText ta-in)]
                   (send-to-repl app txt false)
                   (.setText ta-in ""))
@@ -242,12 +234,14 @@
                       (.getLineOfOffset ta-in (.. ta-in getText length)))
         prev-hist #(show-previous-repl-entry app)
         next-hist #(show-next-repl-entry app)]
-    (utils/attach-child-action-keys ta-in ["UP" at-top prev-hist]
-                              ["DOWN" at-bottom next-hist]
-                              ["ENTER" ready submit])
-    (utils/attach-action-keys ta-in ["cmd1 UP" prev-hist]
-                        ["cmd1 DOWN" next-hist]
-                        ["cmd1 ENTER" submit])))
+    (utils/attach-child-action-keys ta-in
+                                    ["UP" at-top prev-hist]
+                                    ["DOWN" at-bottom next-hist]
+                                    ["ENTER" ready submit])
+    (utils/attach-action-keys ta-in
+                              ["cmd1 UP" prev-hist]
+                              ["cmd1 DOWN" next-hist]
+                              ["cmd1 ENTER" submit])))
 
 (defn print-stack-trace [app]
   (send-to-repl app "(when *e (.printStackTrace *e))" true))

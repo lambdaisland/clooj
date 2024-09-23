@@ -1,9 +1,10 @@
 (ns clooj.repl.output
-  (:import (java.awt Point Rectangle)
-           (java.util.concurrent.atomic AtomicBoolean AtomicInteger)
-           (javax.swing JFrame JScrollPane JSplitPane JSlider JTextArea
-                        SwingUtilities)
-           (javax.swing.event DocumentEvent DocumentListener)))
+  (:import
+   (java.awt Point Rectangle)
+   (java.util.concurrent.atomic AtomicBoolean AtomicInteger)
+   (javax.swing JFrame JScrollPane JSplitPane JSlider JTextArea
+                SwingUtilities)
+   (javax.swing.event DocumentEvent DocumentListener)))
 
 (defn end-position
   "Finds the end position of an insert or change in a document
@@ -45,7 +46,7 @@
   []
   (let [text-area (JTextArea.)
         scroll-pane (tailing-scroll-pane text-area)
-        ;[text-area scroll-pane] (tailing-text-area)
+        ;; [text-area scroll-pane] (tailing-text-area)
         frame (JFrame. "test")
         document (.getDocument text-area)
         slider (JSlider. 0 100)
@@ -57,8 +58,7 @@
       .pack
       (.setBounds 30 30 400 400)
       .show)
-    text-area
-    ))
+    text-area))
 
 (defn write-lines
   "Write n lines of text (positive integers) in
