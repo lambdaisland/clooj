@@ -1,14 +1,16 @@
-; Copyright (c) 2011-2013, Arthur Edelstein
-; All rights reserved.
-; Eclipse Public License 1.0
-; arthuredelstein@gmail.com
+;; Copyright (c) 2011-2013, Arthur Edelstein
+;; All rights reserved.
+;; Eclipse Public License 1.0
+;; arthuredelstein@gmail.com
 
 (ns clooj.highlighting
-  (:import (javax.swing.text DefaultHighlighter
-                             DefaultHighlighter$DefaultHighlightPainter)
-           (java.awt Color)
-           (javax.swing.event CaretListener))
-  (:require [clooj.utils :as utils]))
+  (:require
+   [clooj.utils :as utils])
+  (:import
+   (javax.swing.text DefaultHighlighter
+                     DefaultHighlighter$DefaultHighlightPainter)
+   (java.awt Color)
+   (javax.swing.event CaretListener)))
 
 (defn highlight
   ([text-comp start stop color]
@@ -36,4 +38,3 @@
            (doall (concat
                     (map #(highlight text-comp % Color/LIGHT_GRAY) good-enclosures)
                     (map #(highlight text-comp % Color/PINK) bad-brackets))))))
-

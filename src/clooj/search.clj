@@ -1,13 +1,15 @@
-; Copyright (c) 2011-2013, Arthur Edelstein
-; All rights reserved.
-; Eclipse Public License 1.0
-; arthuredelstein@gmail.com
+;; Copyright (c) 2011-2013, Arthur Edelstein
+;; All rights reserved.
+;; Eclipse Public License 1.0
+;; arthuredelstein@gmail.com
 
 (ns clooj.search
-  (:import (java.awt Color)
-           (java.util.regex Pattern Matcher))
-  (:require [clooj.highlighting :as highlighting]
-            [clooj.utils :as utils]))
+  (:require
+   [clooj.highlighting :as highlighting]
+   [clooj.utils :as utils])
+  (:import
+   (java.awt Color)
+   (java.util.regex Pattern Matcher)))
 
 (defn configure-search [match-case use-regex]
   (bit-or Pattern/CANON_EQ
@@ -116,4 +118,3 @@
     (when-not back
       (swap! current-pos inc))
     (update-find-highlight search-text-area app back)))
-

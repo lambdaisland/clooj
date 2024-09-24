@@ -1,16 +1,18 @@
-; Copyright (c) 2011-2013, Arthur Edelstein
-; All rights reserved.
-; Eclipse Public License 1.0
-; arthuredelstein@gmail.com
+;; Copyright (c) 2011-2013, Arthur Edelstein
+;; All rights reserved.
+;; Eclipse Public License 1.0
+;; arthuredelstein@gmail.com
 
 (ns clooj.project
-  (:import (java.io File)
-           (java.awt GridLayout)
-           (javax.swing JButton JOptionPane JWindow)
-           (javax.swing.tree DefaultMutableTreeNode DefaultTreeModel
-                             TreePath TreeSelectionModel))
-  (:require [clooj.utils :as utils]
-            [clojure.java.io :as io]))
+  (:require
+   [clooj.utils :as utils]
+   [clojure.java.io :as io])
+  (:import
+   (java.io File)
+   (java.awt GridLayout)
+   (javax.swing JButton JOptionPane JWindow)
+   (javax.swing.tree DefaultMutableTreeNode DefaultTreeModel
+                     TreePath TreeSelectionModel)))
 
 ;; projects tree
 
@@ -187,13 +189,11 @@
 (defn update-project-tree [tree]
   (let [model (file-tree-model (vec @project-set))]
     (utils/awt-event
-      ;(time (do
-      (.setModel tree model)
-      (save-project-set)
-      (load-expanded-paths tree)
-      (load-tree-selection tree)
-      (save-expanded-paths tree))))
-    ;))
+     (.setModel tree model)
+     (save-project-set)
+     (load-expanded-paths tree)
+     (load-tree-selection tree)
+     (save-expanded-paths tree))))
 
 (defn get-selected-file-path ^String [app]
   (when-let [tree-path (-> app :docs-tree .getSelectionPaths first)]
@@ -227,4 +227,3 @@
   (apply swap! project-set disj (map #(.getAbsolutePath %)
                                      (get-selected-projects app)))
   (update-project-tree (app :docs-tree)))
-

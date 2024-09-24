@@ -1,21 +1,21 @@
-; Copyright (c) 2011-2013, Arthur Edelstein
-; All rights reserved.
-; Eclipse Public License 1.0
-; arthuredelstein@gmail.com
+;; Copyright (c) 2011-2013, Arthur Edelstein
+;; All rights reserved.
+;; Eclipse Public License 1.0
+;; arthuredelstein@gmail.com
 
 (ns clooj.settings
-  (:import
-    (javax.swing JFrame JTabbedPane JLabel
-                 JPanel JComboBox Box
-                 JTextField JTextArea
-                 BoxLayout SpringLayout
-                 JButton JCheckBox)
-    (java.awt Font GraphicsEnvironment Dimension)
-    (java.awt.image BufferedImage)
-    (javax.swing.event DocumentListener)
-    (java.awt.event ActionListener ItemListener ItemEvent))
   (:require
-    [clooj.utils :as utils]))
+   [clooj.utils :as utils])
+  (:import
+   (javax.swing JFrame JTabbedPane JLabel
+                JPanel JComboBox Box
+                JTextField JTextArea
+                BoxLayout SpringLayout
+                JButton JCheckBox)
+   (java.awt Font GraphicsEnvironment Dimension)
+   (java.awt.image BufferedImage)
+   (javax.swing.event DocumentListener)
+   (java.awt.event ActionListener ItemListener ItemEvent)))
 
 (def settings (atom nil))
 

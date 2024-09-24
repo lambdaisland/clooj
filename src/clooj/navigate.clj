@@ -4,8 +4,10 @@
 ;; arthuredelstein@gmail.com
 
 (ns clooj.navigate
-  (:import (org.fife.ui.rsyntaxtextarea RSyntaxTextArea))
-  (:require [clooj.utils :as utils]))
+  (:require
+   [clooj.utils :as utils])
+  (:import
+   (org.fife.ui.rsyntaxtextarea RSyntaxTextArea)))
 
 (defn get-caret-line-number [comp]
   (.getLineOfOffset comp (.getCaretPosition comp)))

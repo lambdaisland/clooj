@@ -1,29 +1,31 @@
-; Copyright (c) 2011-2013, Arthur Edelstein
-; All rights reserved.
-; Eclipse Public License 1.0
-; arthuredelstein@gmail.com
+;; Copyright (c) 2011-2013, Arthur Edelstein
+;; All rights reserved.
+;; Eclipse Public License 1.0
+;; arthuredelstein@gmail.com
 
 (ns clooj.help
-  (:import (java.io LineNumberReader InputStreamReader PushbackReader)
-           (clojure.lang RT Reflector)
-           (java.lang.reflect Modifier)
-           (java.awt Color Point)
-           (java.util Vector)
-           (javax.swing DefaultListCellRenderer ListSelectionModel)
-           (javax.swing.event ListSelectionListener)
-           (java.io File))
-  (:require [clojure.repl]
-            [clojure.string :as string]
-            [clooj.collaj :as collaj]
-            [clooj.utils :as utils]
-            [clooj.brackets :as brackets]
-            [cemerick.pomegranate.aether :as aether]
-            [clj-inspector.jars :as jars]
-            [clj-inspector.vars :as vars]))
+  (:require
+   [clojure.repl]
+   [clojure.string :as string]
+   [clooj.collaj :as collaj]
+   [clooj.utils :as utils]
+   [clooj.brackets :as brackets]
+   [cemerick.pomegranate.aether :as aether]
+   [clj-inspector.jars :as jars]
+   [clj-inspector.vars :as vars])
+  (:import
+   (java.io LineNumberReader InputStreamReader PushbackReader)
+   (clojure.lang RT Reflector)
+   (java.lang.reflect Modifier)
+   (java.awt Color Point)
+   (java.util Vector)
+   (javax.swing DefaultListCellRenderer ListSelectionModel)
+   (javax.swing.event ListSelectionListener)
+   (java.io File)))
 
 (def var-maps-agent (agent nil))
 
-; from http://clojure.org/special_forms
+;; from http://clojure.org/special_forms
 (def special-forms
   {"def" "(def symbol init?)"
    "if"  "(if test then else?)"
@@ -253,10 +255,8 @@
         token-pat2 (re-pattern (str "(?i)\\A.\\Q" token "\\E"))
         items (vals @var-maps-agent)
         best (match-items token-pat1 items)
-        others (match-items token-pat2 items)
-        ;collaj-items (or (try (collaj/raw-data token) (catch Throwable _)))
-        ]
-    (concat best others #_collaj-items)))
+        others (match-items token-pat2 items)]
+    (concat best others)))
 
 (defn show-completion-list [{:keys [completion-list
                                     repl-split-pane
