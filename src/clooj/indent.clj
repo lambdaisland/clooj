@@ -7,9 +7,13 @@
   (:require
    [clojure.string :as string]
    [clooj.brackets :as brackets]
+   [clooj.text-area :as text-area]
    [clooj.utils :as utils])
   (:import
-   (javax.swing.text DocumentFilter)))
+   (javax.swing.text DocumentFilter DocumentFilter$FilterBypass)
+   (org.fife.ui.rsyntaxtextarea RSyntaxTextArea)))
+
+(set! *warn-on-reflection* true)
 
 (def special-tokens
   ["def" "defn" "defmacro" "let" "for" "loop" "doseq" "if" "when"
@@ -25,7 +29,7 @@
 
 (defn second-token-pos [txt]
   (when-let [x (re-find #".+?\s" (string/trimr (first (.split #"\r?\n" txt))))]
-    (.length x)))
+    (count x)))
 
 (defn left-paren-indent-size [txt]
   (let [token1 (first-token txt)]
@@ -40,19 +44,19 @@
   (let [bracket-pos (first (brackets/find-enclosing-brackets
                             (utils/get-text-str text-comp) offset))]
     (when (<= 0 bracket-pos)
-      (let [bracket (.. text-comp getText (charAt bracket-pos))
+      (let [bracket (.. (text-area/text text-comp) (charAt bracket-pos))
             col (:col (utils/get-coords text-comp bracket-pos))]
         (if (= bracket \;)
           (compute-indent-size text-comp bracket-pos)
           (+ col
              (condp = bracket
-               \( (left-paren-indent-size (.. text-comp getDocument
+               \( (left-paren-indent-size (.. (text-area/doc text-comp)
                                               (getText bracket-pos
                                                        (- offset bracket-pos))))
                \\ 0  \[ 1  \{ 1  \" 1
                1)))))))
 
-(defn fix-indent [text-comp line]
+(defn fix-indent [^RSyntaxTextArea text-comp line]
   (let [start (.getLineStartOffset text-comp line)
         end (.getLineEndOffset text-comp line)
         document (.getDocument text-comp)
@@ -78,17 +82,17 @@
                             ["cmd1 BACK_SLASH" #(fix-indent-selected-lines text-comp)] ; "cmd1 \"
                             ["cmd1 CLOSE_BRACKET" #(utils/indent text-comp)]   ; "cmd1 ]"
                             ["cmd1 OPEN_BRACKET" #(utils/unindent text-comp)]) ; "cmd1 ["
-  (.. text-comp getDocument
+  (.. (text-area/doc text-comp)
       (setDocumentFilter
        (proxy [DocumentFilter] []
-         (replace [fb offset len text attrs]
+         (replace [^DocumentFilter$FilterBypass fb offset len text attrs]
            (.replace
             fb offset len
             (condp = text
               "\n" (auto-indent-str text-comp offset)
               text)
             attrs))
-         (remove [fb offset len]
+         (remove [^DocumentFilter$FilterBypass fb offset len]
            (.remove fb offset len))
-         (insertString [fb offset string attr]
+         (insertString [^DocumentFilter$FilterBypass fb offset string attr]
            (.insertString fb offset string attr))))))

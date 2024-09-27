@@ -5,7 +5,7 @@
 
 (ns clooj.utils
   (:require
-   [clojure.string :as string])
+   [clojure.string :as str])
   (:import
    (java.awt FileDialog Point Window)
    (java.awt.event ActionListener MouseAdapter)
@@ -13,7 +13,7 @@
    (java.lang Process)
    (java.security MessageDigest)
    (java.util.prefs Preferences)
-   (javax.swing AbstractAction BorderFactory JButton JComponent JFileChooser JFrame JMenu JMenuItem JOptionPane JSplitPane JViewport KeyStroke SpringLayout SwingUtilities)
+   (javax.swing AbstractAction BorderFactory JButton JComponent JFileChooser JFrame JMenu JMenuBar JMenuItem JOptionPane JSplitPane JViewport KeyStroke SpringLayout SwingUtilities)
    (javax.swing.event CaretListener DocumentListener UndoableEditListener)
    (javax.swing.undo UndoManager)
    (org.fife.ui.rsyntaxtextarea RSyntaxDocument RSyntaxTextArea)))
@@ -32,10 +32,10 @@
   (let [n (count bindings)]
     (assert (zero? (mod n 2)))
     (assert (<= 2 n))
-  (if (= 2 n)
-    `(when-let ~bindings ~@body)
-    (let [[a b] (map vec (split-at 2 bindings))]
-      `(when-let ~a (when-lets ~b ~@body))))))
+    (if (= 2 n)
+      `(when-let ~bindings ~@body)
+      (let [[a b] (map vec (split-at 2 bindings))]
+        `(when-let ~a (when-lets ~b ~@body))))))
 
 (defn count-while [pred coll]
   (count (take-while pred coll)))
@@ -45,9 +45,9 @@
 
 (defmacro awt-event [& body]
   `(SwingUtilities/invokeLater
-     (fn [] (try ~@body
-                 (catch Throwable t#
-                        (.printStackTrace t#))))))
+    (fn [] (try ~@body
+                (catch Throwable t#
+                  (.printStackTrace t#))))))
 
 (defmacro gen-map [& args]
   (let [kw (map keyword args)]
@@ -67,9 +67,9 @@
                      (node "clooj") (node "c6833c87-9631-44af-af83-f417028ea7aa")))
 
 (defn partition-str [n ^String s]
-  (let [l (.length s)]
+  (let [l (count s)]
     (for [i (range 0 l n)]
-      (.substring s i (Math/min (long l) (+ (int i) (int n)))))))
+      (subs s i (Math/min (long l) (+ (int i) (int n)))))))
 
 (def pref-max-bytes (* 3/4 Preferences/MAX_VALUE_LENGTH))
 
@@ -85,12 +85,12 @@
 (defn read-value-from-prefs
   "Reads a pure clojure data structure from Preferences object."
   [^Preferences prefs ^String key]
-  (when-not (.endsWith key "/")
+  (when-not (str/ends-with? key "/")
     (let [node (.node prefs key)
           ^String s (apply str
                            (for [i (range (count (. node keys)))]
                              (.get node (str i) nil)))]
-      (when (and s (pos? (.length s))) (read-string s)))))
+      (when (and s (pos? (count s))) (read-string s)))))
 
 (defn write-obj-to-prefs
   "Writes a java object to a Preferences object."
@@ -205,7 +205,7 @@
 
 (defn scroll-to-line [^RSyntaxTextArea text-comp line]
   (let [text (.getText text-comp)
-        pos (inc (.length (string/join "\n" (take (dec line) (string/split text #"\n")))))]
+        pos (inc (count (string/join "\n" (take (dec line) (string/split text #"\n")))))]
     (.setCaretPosition text-comp pos)
     (scroll-to-pos text-comp pos)))
 
@@ -273,7 +273,7 @@
 
 ;; keys
 
-(defn get-keystroke [^String key-shortcut]
+(defn get-keystroke ^KeyStroke [^String key-shortcut]
   (KeyStroke/getKeyStroke
    (-> key-shortcut
        (.replace "cmd1" (if (is-mac) "meta" "ctrl"))
@@ -328,26 +328,26 @@
 ;; menus
 
 (defn add-menu-item
-  ([menu item-name key-mnemonic key-accelerator response-fn]
-    (let [menu-item (JMenuItem. item-name)]
-      (when key-accelerator
-        (.setAccelerator menu-item (get-keystroke key-accelerator)))
-      (when (and (not (is-mac)) key-mnemonic)
-        (.setMnemonic menu-item (.getKeyCode (get-keystroke key-mnemonic))))
-      (.addActionListener menu-item
-                          (reify ActionListener
-                            (actionPerformed [this action-event]
-                                             (response-fn))))
-      (.add menu menu-item)))
-  ([menu item]
-    (condp = item
-      :sep (.addSeparator menu))))
+  ([^JMenu menu ^String item-name key-mnemonic key-accelerator response-fn]
+   (let [menu-item (JMenuItem. item-name)]
+     (when key-accelerator
+       (.setAccelerator menu-item (get-keystroke key-accelerator)))
+     (when (and (not (is-mac)) key-mnemonic)
+       (.setMnemonic menu-item (.getKeyCode (get-keystroke key-mnemonic))))
+     (.addActionListener menu-item
+                         (reify ActionListener
+                           (actionPerformed [this action-event]
+                             (response-fn))))
+     (.add menu menu-item)))
+  ([^JMenu menu item]
+   (condp = item
+     :sep (.addSeparator menu))))
 
 (defn add-menu
   "Each item-tuple is a vector containing a
   menu item's text, mnemonic key, accelerator key, and the function
   it executes."
-  [menu-bar title key-mnemonic & item-tuples]
+  [^JMenuBar menu-bar ^String title key-mnemonic & item-tuples]
   (let [menu (JMenu. title)]
     (when (and (not (is-mac)) key-mnemonic)
       (.setMnemonic menu (.getKeyCode (get-keystroke key-mnemonic))))
@@ -360,7 +360,7 @@
 (defn on-click [^JComponent comp num-clicks fun]
   (.addMouseListener comp
                      (proxy [MouseAdapter] []
-                       (mouseClicked [event]
+                       (mouseClicked [^java.awt.event.MouseEvent event]
                          (when (== num-clicks (.getClickCount event))
                            (.consume event)
                            (fun))))))
@@ -473,7 +473,7 @@
 (defn confirmed? [question title]
   (= JOptionPane/YES_OPTION
      (JOptionPane/showConfirmDialog
-       nil question title  JOptionPane/YES_NO_OPTION)))
+      nil question title  JOptionPane/YES_NO_OPTION)))
 
 (defn ask-value [question title]
   (JOptionPane/showInputDialog nil question title JOptionPane/QUESTION_MESSAGE))

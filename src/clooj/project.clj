@@ -6,19 +6,32 @@
 (ns clooj.project
   (:require
    [clooj.utils :as utils]
-   [clojure.java.io :as io])
+   [clojure.java.io :as io]
+   [clojure.string :as str])
   (:import
    (java.io File)
    (java.awt GridLayout)
    (javax.swing JButton JOptionPane JWindow)
    (javax.swing.tree DefaultMutableTreeNode DefaultTreeModel
-                     TreePath TreeSelectionModel)))
+                     TreePath TreeSelectionModel)
+   javax.swing.JTree))
+
+(set! *warn-on-reflection* true)
 
 ;; projects tree
 
 (declare restart-doc)
 
 (def project-set (atom (sorted-set)))
+
+(defn docs-tree ^JTree [app]
+  (:docs-tree app))
+
+(defn user-object ^File [^DefaultMutableTreeNode node]
+  (.getUserObject node))
+
+(defn last-path-component ^DefaultMutableTreeNode [^TreePath tree-path]
+  (.getLastPathComponent tree-path))
 
 (defn save-project-set []
   (utils/write-value-to-prefs utils/clooj-prefs "project-set" @project-set))
@@ -29,37 +42,38 @@
 
 (defn tree-path-to-file [^TreePath tree-path]
   (when tree-path
-    (try (.. tree-path getLastPathComponent getUserObject getAbsolutePath)
+    (try (.getAbsolutePath (user-object (last-path-component tree-path)))
          (catch Exception e nil))))
 
 ;; loading and saving expanded paths
 
-(defn get-row-path [tree row]
+(defn get-row-path [^JTree tree row]
   (tree-path-to-file (. tree getPathForRow row)))
 
-(defn get-expanded-paths [tree]
-  (for [i (range (.getRowCount tree)) :when (.isExpanded tree i)]
+(defn get-expanded-paths [^JTree tree]
+  (for [i (range (.getRowCount tree))
+        :when (.isExpanded tree (long i))]
     (get-row-path tree i)))
 
-(defn save-expanded-paths [tree]
+(defn save-expanded-paths [^JTree tree]
   (utils/write-value-to-prefs utils/clooj-prefs "expanded-paths" (get-expanded-paths tree)))
 
-(defn expand-paths [tree paths]
+(defn expand-paths [^JTree tree paths]
   (doseq [i (range) :while (< i (.getRowCount tree))]
     (when-let [x (some #{(tree-path-to-file (. tree getPathForRow i))} paths)]
       (.expandPath tree (. tree getPathForRow i)))))
 
-(defn load-expanded-paths [tree]
+(defn load-expanded-paths [^JTree tree]
   (let [paths (utils/read-value-from-prefs utils/clooj-prefs "expanded-paths")]
     (when paths
       (expand-paths tree paths))))
 
 ;; loading and saving tree selection
 
-(defn save-tree-selection [tree path]
+(defn save-tree-selection [^JTree tree path]
   (utils/write-value-to-prefs
-    utils/clooj-prefs "tree-selection"
-    (tree-path-to-file path)))
+   utils/clooj-prefs "tree-selection"
+   (tree-path-to-file path)))
 
 (defn path-components
   "Generates a sequence of the components in a file path."
@@ -82,58 +96,58 @@
     (and (every? true? (map = ancestor descendant))
          (<= (count ancestor) (count descendant)))))
 
-(defn node-children [node]
+(defn node-children [^DefaultMutableTreeNode node]
   (when-not (.isLeaf node)
     (for [i (range (.getChildCount node))]
       (.getChildAt node i))))
 
 (defn path-to-node
   "Find the tree node corresponding to a particular file path."
-  [tree path]
-  (let [root-node (.. tree getModel getRoot)]
+  ^DefaultMutableTreeNode [^JTree tree path]
+  (let [^DefaultMutableTreeNode root-node (.. tree getModel getRoot)]
     (loop [node root-node]
       (when (and node (not (.isLeaf node)))
         (when-let [children (node-children node)]
-                   (let [closer-node (first
-                            (filter #(file-ancestor?
-                                       (.getUserObject %) path)
-                                    children))]
-          (when closer-node
-            (if (= (io/file path)
-                   (.getUserObject closer-node))
-              closer-node
-              (recur closer-node)))))))))
+          (let [closer-node (first
+                             (filter #(file-ancestor?
+                                       (user-object ^DefaultMutableTreeNode %) path)
+                                     children))]
+            (when closer-node
+              (if (= (io/file path)
+                     (user-object closer-node))
+                closer-node
+                (recur closer-node)))))))))
 
-(defn row-for-path [tree path]
+(defn row-for-path [^JTree tree path]
   (first
-    (for [i (range 1 (.getRowCount tree))
-          :when (= path
-                   (-> tree (.getPathForRow i)
-                            .getPath last .getUserObject .getAbsolutePath))]
-      i)))
+   (for [i (range 1 (.getRowCount tree))
+         :when (= path
+                  (-> tree (.getPathForRow i)
+                      .getPath last user-object .getAbsolutePath))]
+     i)))
 
-(defn set-tree-selection [tree path]
+(defn set-tree-selection [^JTree tree path]
   (utils/awt-event
     (when-let [node (path-to-node tree path)]
       (let [node-path (.getPath node)
-            paths (map #(.. % getUserObject getAbsolutePath) (rest node-path))]
+            paths (map #(-> % user-object .getAbsolutePath) (rest node-path))]
         (expand-paths tree paths)
         (when-let [row (row-for-path tree path)]
           (.setSelectionRow tree row))))))
 
-(defn load-tree-selection [tree]
+(defn load-tree-selection [^JTree tree]
   (let [path (utils/read-value-from-prefs utils/clooj-prefs "tree-selection")]
-     (if (nil? path)
-       false
-       (do
-         (set-tree-selection tree path)
-         true))))
+    (if (nil? path)
+      false
+      (do
+        (set-tree-selection tree path)
+        true))))
 
 ;;;;;;;;;;;;;;;;;;;
 
 (defn get-code-files [dir suffix]
   (let [dir (io/file dir)]
-    (sort (filter #(.endsWith (.getName %) suffix)
+    (sort (filter #(str/ends-with? (.getName ^File %) suffix)
                   (file-seq dir)))))
 
 (defn get-temp-file ^File [^File orig]
@@ -152,18 +166,18 @@
 (defn visible-children
   "Get a vector of a directory's children, if there are any.
    Omits hidden and temporary files."
-  [file]
+  [^File file]
   (->> (.listFiles file)
-       (remove #(.startsWith (.getName %) "."))
-       (remove #(.endsWith (.getName %) "~"))
+       (remove #(.startsWith (.getName ^File %) "."))
+       (remove #(str/ends-with? (.getName ^File %) "~"))
        vec))
 
 (defn file-name-text
   "Show a file's name, with *stars* if it is the temp file."
   [file]
   (if (.exists (get-temp-file file))
-    (str "*" (.getName file) "*")
-    (str (.getName file) "    ")))
+    (str "*" (.getName ^File file) "*")
+    (str (.getName ^File file) "    ")))
 
 (defn file-node
   "Tree node representing a file (possibly a directory)."
@@ -186,7 +200,7 @@
 (defn file-tree-model [projects]
     (DefaultTreeModel. (root-node projects) false))
 
-(defn update-project-tree [tree]
+(defn update-project-tree [^JTree tree]
   (let [model (file-tree-model (vec @project-set))]
     (utils/awt-event
      (.setModel tree model)
@@ -196,19 +210,18 @@
      (save-expanded-paths tree))))
 
 (defn get-selected-file-path ^String [app]
-  (when-let [tree-path (-> app :docs-tree .getSelectionPaths first)]
-    (-> tree-path .getLastPathComponent .getUserObject .getAbsolutePath)))
+  (when-let [^TreePath tree-path (-> app docs-tree .getSelectionPaths first)]
+    (-> tree-path last-path-component user-object .getAbsolutePath)))
 
-(defn get-selected-namespace [tree]
+(defn get-selected-namespace [^JTree tree]
   (-> tree .getSelectionPaths first
-      .getLastPathComponent .getUserObject .toString
-      (.replace ".clj" "") (.replace "/" ".")))
+      last-path-component user-object .toString
+      (str/replace #"\.clj" "") (str/replace #"/" ".")))
 
 (defn get-selected-projects [app]
-  (let [tree (app :docs-tree)
-        selections (.getSelectionPaths tree)]
-    (for [selection selections]
-      (-> selection .getPath second .getUserObject))))
+  (let [selections (.getSelectionPaths (docs-tree app))]
+    (for [^TreePath selection selections]
+      (-> selection .getPath second user-object))))
 
 (defn add-project [app project-path]
   (swap! project-set conj project-path))
@@ -220,10 +233,11 @@
         (do
           (swap! project-set
                  #(-> % (disj old-project) (conj (.getAbsolutePath dir))))
-          (update-project-tree (:docs-tree app)))
+          (update-project-tree (docs-tree app)))
         (JOptionPane/showMessageDialog nil "Unable to move project.")))))
 
 (defn remove-selected-project [app]
-  (apply swap! project-set disj (map #(.getAbsolutePath %)
+  (apply swap! project-set disj (map #(.getAbsolutePath ^File %)
                                      (get-selected-projects app)))
-  (update-project-tree (app :docs-tree)))
+  (update-project-tree (docs-tree app)))
+

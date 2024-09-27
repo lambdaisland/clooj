@@ -16,10 +16,9 @@
    (clojure.lang LineNumberingPushbackReader)
    (java.io File PrintWriter StringReader Writer)))
 
-#_{:clj-kondo/ignore [:use]}
-(use 'clojure.java.javadoc)
-
-(def repl-history {:items (atom nil) :pos (atom 0)})
+(def repl-history
+  {:items (atom nil)
+   :pos (atom 0)})
 
 ;; utils
 
@@ -49,13 +48,12 @@
 
 (defn initialize-repl [repl]
   (.evaluate repl
-    (str
-      "(do"
-      ;; (utils/local-clj-source "clooj/cemerick/pomegranate.clj")
-      ;; (utils/local-clj-source "clooj/repl/remote.clj")
-      ;; "(clooj.repl.remote/repl)"
-      ")"
-      )))
+             (str
+              "(do"
+              ;; (utils/local-clj-source "clooj/repl/remote.clj")
+              ;; "(clooj.repl.remote/repl)"
+              ")"
+              )))
 
 (defn replace-first [coll x]
   (cons x (next coll)))
@@ -79,8 +77,8 @@
     ;;(println namespaces)
     (pr-str
      `(do
-        (dorun (map #(try (clooj.cemerick.pomegranate/add-classpath %)
-                          (catch Exception e# (println e#))) '~classpaths))
+        ;; (dorun (map #(try (clooj.cemerick.pomegranate/add-classpath %)
+        ;;                   (catch Exception e# (println e#))) '~classpaths))
         (dorun (map #(try (require %) (catch Exception _#)) '~namespaces))
         (binding [*source-path* ~short-file
                   *file* ~file]
@@ -220,8 +218,8 @@
                      txt (.getText ta-in)
                      trim-txt (string/trimr txt)]
                  (and
-                  (pos? (.length trim-txt))
-                  (<= (.length trim-txt)
+                  (pos? (count trim-txt))
+                  (<= (count trim-txt)
                       caret-pos)
                   (= -1 (first (brackets/find-enclosing-brackets
                                 txt
@@ -245,6 +243,3 @@
 
 (defn print-stack-trace [app]
   (send-to-repl app "(when *e (.printStackTrace *e))" true))
-
-
-

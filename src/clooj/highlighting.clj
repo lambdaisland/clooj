@@ -7,24 +7,25 @@
   (:require
    [clooj.utils :as utils])
   (:import
-   (javax.swing.text DefaultHighlighter
-                     DefaultHighlighter$DefaultHighlightPainter)
    (java.awt Color)
-   (javax.swing.event CaretListener)))
+   (javax.swing.text DefaultHighlighter$DefaultHighlightPainter)
+   (org.fife.ui.rsyntaxtextarea RSyntaxTextArea)))
+
+(set! *warn-on-reflection* true)
 
 (defn highlight
-  ([text-comp start stop color]
-    (when (and (<= 0 start) (<= stop (.. text-comp getDocument getLength)))
-      (.. text-comp getHighlighter
-          (addHighlight start stop
-                        (DefaultHighlighter$DefaultHighlightPainter. color)))))
+  ([^RSyntaxTextArea text-comp start stop color]
+   (when (and (<= 0 start) (<= stop (.. text-comp getDocument getLength)))
+     (.. text-comp getHighlighter
+         (addHighlight start stop
+                       (DefaultHighlighter$DefaultHighlightPainter. color)))))
   ([text-comp pos color] (highlight text-comp pos (inc pos) color)))
 
 (defn remove-highlight
-  ([text-comp highlight-object]
-    (when highlight-object
-      (.removeHighlight (.getHighlighter text-comp)
-                        highlight-object))))
+  ([^RSyntaxTextArea text-comp highlight-object]
+   (when highlight-object
+     (.removeHighlight (.getHighlighter text-comp)
+                       highlight-object))))
 
 (defn remove-highlights [text-comp highlights]
   (dorun (map #(remove-highlight text-comp %) highlights)))

@@ -5,23 +5,22 @@
 
 (ns clooj.help
   (:require
-   [clojure.repl]
-   [clojure.string :as string]
-   [clooj.collaj :as collaj]
-   [clooj.utils :as utils]
-   [clooj.brackets :as brackets]
-   [cemerick.pomegranate.aether :as aether]
    [clj-inspector.jars :as jars]
-   [clj-inspector.vars :as vars])
+   [clj-inspector.vars :as vars]
+   [clojure.repl]
+   [clojure.string :as str]
+   [clooj.brackets :as brackets]
+   [clooj.text-area :as text-area]
+   [clooj.utils :as utils])
   (:import
-   (java.io LineNumberReader InputStreamReader PushbackReader)
-   (clojure.lang RT Reflector)
-   (java.lang.reflect Modifier)
    (java.awt Color Point)
+   (java.io File)
+   (java.lang.reflect Field Method Modifier)
    (java.util Vector)
-   (javax.swing DefaultListCellRenderer ListSelectionModel)
-   (javax.swing.event ListSelectionListener)
-   (java.io File)))
+   (javax.swing DefaultListCellRenderer JLabel JList JScrollPane JSplitPane ListSelectionModel)
+   (javax.swing.event ListSelectionListener)))
+
+(set! *warn-on-reflection* true)
 
 (def var-maps-agent (agent nil))
 
@@ -42,7 +41,7 @@
    "monitor-enter" "Avoid!"
    "monitor-exit"  "Avoid!"})
 
-(defn present-item [item]
+(defn present-item ^String [item]
   (str (:name item) " [" (:ns item) "]"))
 
 (defn make-var-super-map [var-maps]
@@ -51,11 +50,12 @@
           [[(:ns var-map) (:name var-map)] var-map])))
 
 (defn classpath-to-jars [project-path classpath]
-  (apply concat
-    (for [item classpath]
-      (cond (.endsWith item "*") (jars/jar-files (apply str (butlast item)))
-            (.endsWith item ".jar") (list (File. item))
-            :else (jars/jar-files item)))))
+  (apply
+   concat
+   (for [item classpath]
+     (cond (str/ends-with? item "*") (jars/jar-files (apply str (butlast item)))
+           (str/ends-with? item ".jar") (list (File. ^String item))
+           :else (jars/jar-files item)))))
 
 (defn get-sources-from-jars [project-path classpath]
    (->> (classpath-to-jars project-path classpath)
@@ -67,9 +67,9 @@
   (map slurp
        (apply concat
               (for [item classpath]
-                (let [item-file (File. item)]
+                (let [item-file (File. ^String item)]
                   (when (.isDirectory item-file)
-                    (filter #(.endsWith (.getName %) ".clj")
+                    (filter #(str/ends-with? (.getName ^File %) ".clj")
                             (file-seq item-file))))))))
 
 (defn get-var-maps [project-path classpath]
@@ -84,33 +84,33 @@
 
 (defn find-form-string [text pos]
   (let [[left right] (brackets/find-enclosing-brackets text pos)]
-    (when (> (.length text) left)
-      (.substring text (inc left)))))
+    (when (> (count text) left)
+      (subs text (inc left)))))
 
 (def non-token-chars [\; \~ \@ \( \) \[ \] \{ \} \  \. \newline \/ \" \'])
 
-(defn local-token-location [text pos]
-  (let [n (.length text)
-        pos (-> pos (Math/max 0) (Math/min n))]
+(defn local-token-location [text ^long pos]
+  (let [n (long (count text))
+        pos (Math/min (Math/max pos 0) n)]
     [(loop [p (dec pos)]
        (if (or (neg? p)
-               (some #{(.charAt text p)} non-token-chars))
+               (some #{(.charAt ^String text p)} non-token-chars))
          (inc p)
          (recur (dec p))))
      (loop [p pos]
        (if (or (>= p n)
-               (some #{(.charAt text p)} non-token-chars))
+               (some #{(.charAt ^String text p)} non-token-chars))
          p
          (recur (inc p))))]))
 
 (defn head-token [form-string]
   (when form-string
     (second
-      (re-find #"(.*?)[\s|\)|$]"
-               (str (.trim form-string) " ")))))
+     (re-find #"(.*?)[\s|\)|$]"
+              (str (str/trim form-string) " ")))))
 
 (defn current-ns-form [app]
-  (-> app :doc-text-area .getText read-string))
+  (-> app :doc-text-area text-area/text read-string))
 
 (defn ns-available-names [app]
   (vars/parse-ns-form (current-ns-form app)))
@@ -126,8 +126,8 @@
 
 (defn var-from-token [app current-ns token]
   (when token
-    (if (.contains token "/")
-      (vec (.split token "/"))
+    (if (str/includes? token "/")
+      (vec (str/split token #"/"))
       (or ((ns-available-names app) token)
           [current-ns token]))))
 
@@ -142,7 +142,6 @@
     (arglist-from-token app ns token)))
 
 ;; tab help
-
 
 (defonce help-state (atom {:visible false :token nil :pos nil}))
 
@@ -167,70 +166,70 @@
          (if source
            (str "Source:\n"
                 (if doc
-                  (.replace source doc "...docs...")
+                  (.replace ^String source ^String doc "...docs...")
                   source))
            "No source found."))))
 
 (defn create-param-list
-  ([method-or-constructor static]
-    (str " (["
-         (let [type-names (map #(.getSimpleName %)
-                               (.getParameterTypes method-or-constructor))
-               param-names (if static type-names (cons "this" type-names))]
-           (apply str (interpose " " param-names)))
-         "])"))
+  ([^Method method-or-constructor static]
+   (str " (["
+        (let [type-names (map #(.getSimpleName ^Class %)
+                              (.getParameterTypes method-or-constructor))
+              param-names (if static type-names (cons "this" type-names))]
+          (apply str (interpose " " param-names)))
+        "])"))
   ([method-or-constructor]
-    (create-param-list method-or-constructor true)))
+   (create-param-list method-or-constructor true)))
 
-(defn constructor-help [constructor]
+(defn constructor-help [^Method constructor]
   (str (.. constructor getDeclaringClass getSimpleName) "."
        (create-param-list constructor)))
 
-(defn method-help [method]
+(defn method-help [^Method method]
   (let [stat (Modifier/isStatic (.getModifiers method))]
     (str
-      (if stat
-        (str (.. method getDeclaringClass getSimpleName)
-             "/" (.getName method))
-        (str "." (.getName method)))
+     (if stat
+       (str (.. method getDeclaringClass getSimpleName)
+            "/" (.getName method))
+       (str "." (.getName method)))
      (create-param-list method stat)
-      " --> " (.getName (.getReturnType method)))))
+     " --> " (.getName (.getReturnType method)))))
 
-(defn field-help [field]
+(defn field-help [^Field field]
   (let [c (.. field getDeclaringClass getSimpleName)]
-  (str
-    (if (Modifier/isStatic (.getModifiers field))
-      (str (.. field getDeclaringClass getSimpleName)
-           "/" (.getName field)
-           (when (Modifier/isFinal (.getModifiers field))
-             (str " --> " (.. field (get nil) toString))))
-      (str "." (.getName field) " --> " (.getName (.getType field)))))))
+    (str
+     (if (Modifier/isStatic (.getModifiers field))
+       (str (.. field getDeclaringClass getSimpleName)
+            "/" (.getName field)
+            (when (Modifier/isFinal (.getModifiers field))
+              (str " --> " (.. field (get nil) toString))))
+       (str "." (.getName field) " --> " (.getName (.getType field)))))))
 
-(defn class-help [c]
+(defn class-help [^Class c]
   (apply str
          (concat
-           [(present-item c) "\n  java class"]
-           ["\n\nCONSTRUCTORS\n"]
-           (interpose "\n"
-                      (sort
-                        (for [constructor (.getConstructors c)]
-                          (constructor-help constructor))))
-           ["\n\nMETHODS\n"]
-           (interpose "\n"
-                      (sort
-                        (for [method (.getMethods c)]
-                          (method-help method))))
-           ["\n\nFIELDS\n"]
-           (interpose "\n"
-                      (sort
-                        (for [field (.getFields c)]
-                          (field-help field)))))))
+          [(present-item c) "\n  java class"]
+          ["\n\nCONSTRUCTORS\n"]
+          (interpose "\n"
+                     (sort
+                      (for [constructor (.getConstructors c)]
+                        (constructor-help constructor))))
+          ["\n\nMETHODS\n"]
+          (interpose "\n"
+                     (sort
+                      (for [method (.getMethods c)]
+                        (method-help method))))
+          ["\n\nFIELDS\n"]
+          (interpose "\n"
+                     (sort
+                      (for [field (.getFields c)]
+                        (field-help field)))))))
 
 (defn item-help [item]
   (cond (map? item) (var-help item)
         (class? item) (class-help item)))
 
-(defn set-first-component [split-pane comp]
+(defn set-first-component [^JSplitPane split-pane comp]
   (let [loc (.getDividerLocation split-pane)]
     (.setTopComponent split-pane comp)
     (.setDividerLocation split-pane loc)))
@@ -242,13 +241,13 @@
           (>= i n) 0
           :else i)))
 
-(defn list-size [list]
+(defn list-size [^JList list]
   (-> list .getModel .getSize))
 
 (defn match-items [pattern items]
   (->> items
-    (filter #(re-find pattern (:name %)))
-    (sort-by #(.toLowerCase (:name %)))))
+       (filter #(re-find pattern (:name %)))
+       (sort-by #(str/lower-case (:name %)))))
 
 (defn hits [token]
   (let [token-pat1 (re-pattern (str "(?i)\\A\\Q" token "\\E"))
@@ -258,37 +257,38 @@
         others (match-items token-pat2 items)]
     (concat best others)))
 
-(defn show-completion-list [{:keys [completion-list
+(defn show-completion-list [{:keys [^JList completion-list
                                     repl-split-pane
                                     help-text-scroll-pane
                                     doc-split-pane
                                     completion-panel
-                                    repl-label]:as app}]
-    (when (pos? (list-size completion-list))
-      (set-first-component repl-split-pane help-text-scroll-pane)
-      (set-first-component doc-split-pane completion-panel)
-      (.setText repl-label "Documentation")
-      (.ensureIndexIsVisible completion-list
-                             (.getSelectedIndex completion-list))))
+                                    ^JLabel repl-label]
+                             :as app}]
+  (when (pos? (list-size completion-list))
+    (set-first-component repl-split-pane help-text-scroll-pane)
+    (set-first-component doc-split-pane completion-panel)
+    (.setText repl-label "Documentation")
+    (.ensureIndexIsVisible completion-list
+                           (.getSelectedIndex completion-list))))
 
 (defn advance-help-list [app token index-change-fn]
-  (let [help-list (app :completion-list)]
+  (let [^JList help-list (app :completion-list)]
     (if (not= token (@help-state :token))
       (do
         (swap! help-state assoc :token token)
-        (.setListData help-list (Vector. (hits token)))
+        (.setListData help-list (Vector. ^java.util.List (hits token)))
         (.setSelectedIndex help-list 0))
       (let [n (list-size help-list)]
         (when (pos? n)
           (.setSelectedIndex help-list
                              (clock-num
-                               (index-change-fn
-                                    (.getSelectedIndex help-list))
-                               n))))))
+                              (index-change-fn
+                               (.getSelectedIndex help-list))
+                              n))))))
   (show-completion-list app))
 
 (defn get-list-item [app]
-  (-> app :completion-list .getSelectedValue))
+  (.getSelectedValue ^JList (:completion-list app)))
 
 (defn get-list-artifact [app]
   (when-let [artifact (:artifact (get-list-item app))]
@@ -301,16 +301,17 @@
 
 (defn show-help-text [app choice]
   (let [help-text (or (when choice (item-help choice)) "")]
-    (.setText (app :help-text-area) help-text))
-  (-> app :help-text-scroll-pane .getViewport
-      (.setViewPosition (Point. (int 0) (int 0)))))
+    (text-area/set-text (app :help-text-area) help-text))
+  (.setViewPosition
+   (.getViewport ^JScrollPane (:help-text-scroll-pane app))
+   (Point. (int 0) (int 0))))
 
 (defn show-tab-help [app text-comp index-change-fn]
   (utils/awt-event
     (let [text (utils/get-text-str text-comp)
-          pos (.getCaretPosition text-comp)
+          pos (text-area/caret-position text-comp)
           [start stop] (local-token-location text pos)]
-      (when-let [token (.substring text start stop)]
+      (when-let [token (subs text start stop)]
         (swap! help-state assoc :pos start :visible true)
         (advance-help-list app token index-change-fn)))))
 
@@ -321,14 +322,14 @@
                            (app :repl-out-scroll-pane))
       (set-first-component (app :doc-split-pane)
                            (app :docs-tree-panel))
-      (.setText (app :repl-label) "Clojure REPL output"))
+      (.setText ^JLabel (app :repl-label) "Clojure REPL output"))
     (swap! help-state assoc :visible false :pos nil)))
 
 (defn help-handle-caret-move [app text-comp]
   (utils/awt-event
     (when (@help-state :visible)
       (let [[start _] (local-token-location (utils/get-text-str text-comp)
-                                            (.getCaretPosition text-comp))]
+                                            (text-area/caret-position text-comp))]
         (if-not (= start (@help-state :pos))
           (hide-tab-help app)
           (show-tab-help app text-comp identity))))))
@@ -338,29 +339,30 @@
 
 (defn add-classpath-to-repl
   [app files]
-  (.addAll (app :classpath-queue) files))
+  (.addAll ^java.util.concurrent.BlockingQueue (app :classpath-queue)
+           files))
 
 (defn load-dependencies [app artifact]
   (utils/awt-event (utils/append-text (app :repl-out-text-area)
-               (str "\nLoading " artifact " ... ")))
-  (let [deps (cemerick.pomegranate.aether/resolve-dependencies
-               :coordinates [artifact]
-               :repositories
-                 (merge aether/maven-central
-                        {"clojars" "http://clojars.org/repo"}))]
-    (add-classpath-to-repl app (aether/dependency-files deps)))
+                                      (str "\nLoading " artifact " ... ")))
+  ;; FIXME: use lambdaisland.classpath
+  ;; (let [deps (cemerick.pomegranate.aether/resolve-dependencies
+  ;;              :coordinates [artifact]
+  ;;              :repositories
+  ;;                (merge aether/maven-central
+  ;;                       {"clojars" "http://clojars.org/repo"}))]
+  ;;   (add-classpath-to-repl app (aether/dependency-files deps)))
   (utils/append-text (app :repl-out-text-area)
                      (str "done.")))
 
 (defn update-token [app text-comp new-token]
   (utils/awt-event
     (let [[start stop] (local-token-location
-                         (utils/get-text-str text-comp)
-                         (.getCaretPosition text-comp))
+                        (utils/get-text-str text-comp)
+                        (text-area/caret-position text-comp))
           len (- stop start)]
-      (when (and (seq new-token) (-> app :completion-list .getModel .getSize pos?))
-        (.. text-comp getDocument
-            (replace start len new-token nil))))))
+      (when (and (seq new-token) (pos? (.getSize (.getModel ^JList (:completion-list app)))))
+        (text-area/replace-str text-comp start len new-token)))))
 
 (defn setup-tab-help [text-comp app]
   (utils/attach-action-keys text-comp
@@ -376,24 +378,30 @@
 (defn find-focused-text-pane [app]
   (let [t1 (app :doc-text-area)
         t2 (app :repl-in-text-area)]
-    (cond (.hasFocus t1) t1
-          (.hasFocus t2) t2)))
+    (cond (text-area/focus? t1) t1
+          (text-area/focus? t2) t2)))
 
-(defn setup-completion-list [l app]
+(defmacro proxy-super*
+  "like [[clojure.core/proxy-super]], but add tag metadata to `this` to prevent reflection"
+  [meth & args]
+  `(proxy-call-with-super (fn [] (. ~'this ~meth ~@args))  ~'this ~(name meth)))
+
+(defn setup-completion-list [^JList l app]
   (doto l
     (.setBackground (Color. 0xFF 0xFF 0xE8))
     (.setFocusable false)
     (.setSelectionMode ListSelectionModel/SINGLE_SELECTION)
     (.setCellRenderer
-      (proxy [DefaultListCellRenderer] []
-        (getListCellRendererComponent [list item index isSelected cellHasFocus]
-          (doto (proxy-super getListCellRendererComponent list item index isSelected cellHasFocus)
-            (.setText (present-item item))))))
+     (proxy [DefaultListCellRenderer] []
+       (getListCellRendererComponent [^JList list item index isSelected cellHasFocus]
+         (let [^DefaultListCellRenderer this this
+               ^DefaultListCellRenderer renderer (proxy-super getListCellRendererComponent list item index isSelected cellHasFocus)]
+           (.setText renderer (present-item item))))))
     (.addListSelectionListener
-      (reify ListSelectionListener
-        (valueChanged [_ e]
-          (when-not (.getValueIsAdjusting e)
-            (.ensureIndexIsVisible l (.getSelectedIndex l))
-            (show-help-text app (.getSelectedValue l))))))
+     (reify ListSelectionListener
+       (valueChanged [_ e]
+         (when-not (.getValueIsAdjusting e)
+           (.ensureIndexIsVisible l (.getSelectedIndex l))
+           (show-help-text app (.getSelectedValue l))))))
     (utils/on-click 2 #(when-let [text-pane (find-focused-text-pane app)]
-                        (update-token app text-pane (get-list-token app))))))
+                         (update-token app text-pane (get-list-token app))))))

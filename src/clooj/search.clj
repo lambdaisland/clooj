@@ -20,7 +20,7 @@
 (defn find-all-in-string
   [s t match-case use-regex]
   (try
-    (when (pos? (.length t))
+    (when (pos? (count t))
       (let [p (Pattern/compile t (configure-search match-case use-regex))
             m (re-matcher p s)]
         (loop [positions []]

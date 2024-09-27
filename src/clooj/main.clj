@@ -8,6 +8,7 @@
    :methods [^:static [show [] void]])
   (:require
    [clojure.set]
+   [clojure.string :as str]
    [clooj.brackets :as brackets]
    [clooj.help :as help]
    [clooj.highlighting :as highlighting]
@@ -262,7 +263,7 @@
 (defn file-suffix [^File f]
   (utils/when-lets [name (.getName f)
              last-dot (.lastIndexOf name ".")
-             suffix (.substring name (inc last-dot))]
+             suffix (subs name (inc last-dot))]
     suffix))
 
 (defn text-file? [f]
@@ -572,11 +573,11 @@
           (.setEditable text-area true)
           (.setSyntaxEditingStyle text-area
                                   (let [file-name (.getName file-to-open)]
-                                    (if (or (.endsWith file-name ".clj")
-                                            (.endsWith file-name ".clj~")
-                                            (.endsWith file-name ".edn")
-                                            (.endsWith file-name ".cljs")
-                                            (.endsWith file-name ".cljc"))
+                                    (if (or (str/ends-with? file-name ".clj")
+                                            (str/ends-with? file-name ".clj~")
+                                            (str/ends-with? file-name ".edn")
+                                            (str/ends-with? file-name ".cljs")
+                                            (str/ends-with? file-name ".cljc"))
                                       SyntaxConstants/SYNTAX_STYLE_CLOJURE
                                       SyntaxConstants/SYNTAX_STYLE_NONE))))
       (do (.setText text-area no-project-txt)
@@ -678,7 +679,7 @@
         (when (and (empty? (.listFiles f))
                    (let [p (-> f .getParentFile .getAbsolutePath)]
                      (or (.contains p (str File/separator "src" File/separator))
-                         (.endsWith p (str File/separator "src")))))
+                         (str/ends-with? p (str File/separator "src")))))
           (.delete f)
           (recur (.getParentFile f))))
       (project/update-project-tree (app :docs-tree)))))

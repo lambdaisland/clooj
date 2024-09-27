@@ -4,9 +4,14 @@
 ;; arthuredelstein@gmail.com
 
 (ns clooj.brackets
-  (:import (javax.swing.text JTextComponent))
-  (:require [clojure.string :as string]
-            [clooj.utils :as utils]))
+  (:require
+   [clojure.string :as string]
+   [clooj.utils :as utils]
+   [clooj.text-area :as text-area])
+  (:import
+   (javax.swing.text JTextComponent)))
+
+(set! *warn-on-reflection* true)
 
 (defn mismatched-brackets [a b]
   (and (or (nil? a) (some #{a} [\( \[ \{]))
@@ -30,15 +35,16 @@
         \) p \] p \} p
         s))))
 
-(defn find-enclosing-brackets [text pos]
+(defn find-enclosing-brackets [text ^long pos]
   (let [process #(process-bracket-stack %1 %2 nil)
         reckon-dist (fn [stacks]
                       (let [scores (map count stacks)]
                         (utils/count-while #(<= (first scores) %) scores)))
-        before (.substring text 0 (Math/min (.length text) pos))
+        text-length (Math/min (long (count ^String text)) pos)
+        before (subs text 0 text-length)
         stacks-before (reverse (reductions process nil before))
         left (- pos (reckon-dist stacks-before))
-        after (.substring text (Math/min (.length text) pos))
+        after (subs text text-length)
         stacks-after (reductions process (first stacks-before) after)
         right (+ -1 pos (reckon-dist stacks-after))]
     [left right]))
@@ -55,12 +61,12 @@
           (filter identity
                   (map second (concat new-stack errs)))))))
 
-(defn blank-line-matcher [s]
+(defn blank-line-matcher ^java.util.regex.Matcher [s]
   (re-matcher #"[\n\r]\s*?[\n\r]" s))
 
 (defn find-left-gap [text pos]
-  (let [p (min (.length text) (inc pos))
-        before-reverse (string/reverse (.substring text 0 p))
+  (let [p (min (count text) (inc pos))
+        before-reverse (string/reverse (subs text 0 p))
         matcher (blank-line-matcher before-reverse)]
     (if (.find matcher)
       (- p (.start matcher))
@@ -68,13 +74,13 @@
 
 (defn find-right-gap [text pos]
   (let [p (max 0 (dec pos))
-        after (.substring text p)
-        matcher (blank-line-matcher after) ]
+        after (subs text p)
+        matcher (blank-line-matcher after)]
     (if (.find matcher)
       (+ p (.start matcher))
-      (.length text))))
+      (count text))))
 
 (defn find-line-group [text-comp]
   (let [text (utils/get-text-str text-comp)
-        pos (.getCaretPosition text-comp)]
+        pos (text-area/caret-position text-comp)]
     [(find-left-gap text pos) (find-right-gap text pos)]))
