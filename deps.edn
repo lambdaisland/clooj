@@ -7,7 +7,8 @@
   com.fifesoft/rsyntaxtextarea {:mvn/version "3.5.1"}
   nrepl/nrepl                  {:mvn/version "1.3.0"}
   com.formdev/flatlaf          {:mvn/version "3.5.1"}
-  com.lambdaisland/cli         {:mvn/version "0.18.74"}}
+  com.lambdaisland/cli         {:mvn/version "0.18.74"}
+  lambdaisland/data-printers   {:mvn/version "0.7.47"}}
 
  :aliases
  {:dev {:extra-paths ["dev"]}}}
