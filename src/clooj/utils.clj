@@ -112,7 +112,7 @@
 ;; identify OS
 
 (defn get-os ^String []
-  (string/lower-case (System/getProperty "os.name")))
+  (str/lower-case (System/getProperty "os.name")))
 
 (def is-win
   (memoize #(not (neg? (.indexOf (get-os) "win")))))
@@ -205,7 +205,7 @@
 
 (defn scroll-to-line [^RSyntaxTextArea text-comp line]
   (let [text (.getText text-comp)
-        pos (inc (count (string/join "\n" (take (dec line) (string/split text #"\n")))))]
+        pos (inc (count (str/join "\n" (take (dec line) (str/split text #"\n")))))]
     (.setCaretPosition text-comp pos)
     (scroll-to-pos text-comp pos)))
 
@@ -303,12 +303,18 @@
     (.put im input-event uuid)
     (.put am uuid child-action)))
 
+(def bindings (atom {}))
+
+(comment
+  @bindings)
+
 (defn attach-child-action-keys [^JComponent comp & items]
   (run! #(apply attach-child-action-key comp %) items))
 
 (defn attach-action-key
   "Maps an input-key on a swing component to an action-fn."
   [^JComponent component input-key action-fn]
+  (swap! bindings assoc-in [component input-key] action-fn)
   (attach-child-action-key component input-key
                            (constantly true) action-fn))
 

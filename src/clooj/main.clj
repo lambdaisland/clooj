@@ -529,7 +529,7 @@
     (utils/constrain-to-parent search-close-button :s -15 :w 65 :s 0 :w 95)
     (utils/constrain-to-parent arglist-label :s -14 :w 80 :s -1 :e -10)
     (.layoutContainer layout frame)
-    (exit-if-closed frame app)
+    ;; (exit-if-closed frame app)
     (setup-search-elements app)
     (activate-caret-highlighter app)
     (setup-temp-writer app)

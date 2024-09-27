@@ -5,7 +5,7 @@
 
 (ns clooj.indent
   (:require
-   [clojure.string :as string]
+   [clojure.string :as str]
    [clooj.brackets :as brackets]
    [clooj.text-area :as text-area]
    [clooj.utils :as utils])
@@ -28,7 +28,7 @@
   (second (re-find #"\((.+?)\s" txt)))
 
 (defn second-token-pos [txt]
-  (when-let [x (re-find #".+?\s" (string/trimr (first (.split #"\r?\n" txt))))]
+  (when-let [x (re-find #".+?\s" (str/trimr (first (.split #"\r?\n" txt))))]
     (count x)))
 
 (defn left-paren-indent-size [txt]
@@ -36,7 +36,7 @@
     (or
      (when (and token1
                 (not (or (some #{token1} special-tokens)
-                         (.startsWith (string/triml token1) "["))))
+                         (.startsWith (str/triml token1) "["))))
        (second-token-pos txt))
      2)))
 

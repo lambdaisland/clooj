@@ -5,7 +5,7 @@
 
 (ns clooj.repl.main
   (:require
-   [clojure.string :as string]
+   [clojure.string :as str]
    [clooj.brackets :as brackets]
    [clooj.help :as help]
    [clooj.project :as project]
@@ -216,7 +216,7 @@
         get-caret-pos #(.getCaretPosition ta-in)
         ready #(let [caret-pos (get-caret-pos)
                      txt (.getText ta-in)
-                     trim-txt (string/trimr txt)]
+                     trim-txt (str/trimr txt)]
                  (and
                   (pos? (count trim-txt))
                   (<= (count trim-txt)

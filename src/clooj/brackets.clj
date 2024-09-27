@@ -5,7 +5,7 @@
 
 (ns clooj.brackets
   (:require
-   [clojure.string :as string]
+   [clojure.string :as str]
    [clooj.utils :as utils]
    [clooj.text-area :as text-area])
   (:import
@@ -66,7 +66,7 @@
 
 (defn find-left-gap [text pos]
   (let [p (min (count text) (inc pos))
-        before-reverse (string/reverse (subs text 0 p))
+        before-reverse (str/reverse (subs text 0 p))
         matcher (blank-line-matcher before-reverse)]
     (if (.find matcher)
       (- p (.start matcher))

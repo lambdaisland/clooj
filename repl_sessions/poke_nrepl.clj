@@ -1,7 +1,8 @@
 (ns poke-nrepl
   (:require
    [nrepl.core :as nrepl]
-   [nrepl.transport :as transport]))
+   [nrepl.transport :as transport])
+  )
 
 (def client
   (nrepl/client (nrepl/connect
@@ -16,3 +17,6 @@
   :op "eval"
   :code "(+ 1 1)"})
 
+(do
+  (Thread/sleep 1000)
+  (.getFocusOwner (KeyboardFocusManager/getCurrentKeyboardFocusManager)))
