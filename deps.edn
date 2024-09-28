@@ -2,8 +2,6 @@
 
  :deps
  {org.clojure/clojure          {:mvn/version "1.12.0"}
-  clj-inspector/clj-inspector  {:mvn/version "0.0.16"}
-  slamhound/slamhound          {:mvn/version "1.5.5"}
   com.fifesoft/rsyntaxtextarea {:mvn/version "3.5.1"}
   nrepl/nrepl                  {:mvn/version "1.3.0"}
   com.formdev/flatlaf          {:mvn/version "3.5.1"}

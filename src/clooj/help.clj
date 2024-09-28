@@ -5,8 +5,8 @@
 
 (ns clooj.help
   (:require
-   [clj-inspector.jars :as jars]
-   [clj-inspector.vars :as vars]
+   [clooj.clj-inspector.jars :as jars]
+   [clooj.clj-inspector.vars :as vars]
    [clojure.repl]
    [clojure.string :as str]
    [clooj.brackets :as brackets]

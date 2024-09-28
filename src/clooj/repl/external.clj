@@ -5,7 +5,7 @@
 
 (ns clooj.repl.external
   (:require
-   [clj-inspector.jars :as jars]
+   [clooj.clj-inspector.jars :as jars]
    [clojure.java.io :as io]
    [clooj.help :as help]
    [clooj.protocols :as protocols]
