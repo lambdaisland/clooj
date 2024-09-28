@@ -54,7 +54,7 @@
   "Connects to an nrepl, returning a Repl instance."
   [port out-writer]
   (let [nrepl (connect-nrepl port out-writer)]
-    (reify protocols/Repl
+    (reify protocols/ClojureRuntime
       (evaluate [_ code]
         (nrepl-eval nrepl code))
       (close [_]
@@ -106,7 +106,7 @@
   [project-path out-writer]
   (println "lein-repl.")
   (let [repl (lein-repl-start project-path out-writer)]
-    (reify protocols/Repl
+    (reify protocols/ClojureRuntime
       (evaluate [_ code]
         (.evaluate (:nrepl repl) code))
       (close [_]

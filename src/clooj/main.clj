@@ -198,7 +198,8 @@
                         (let [arglist-text
                               (help/arglist-from-caret-pos app ns text pos)]
                           (utils/awt-event (.setText ^JLabel (:arglist-label app) arglist-text)))))
-                    (catch Throwable t (utils/awt-event (.printStackTrace t)))))))))
+                    (catch Throwable t
+                      (utils/awt-event (.printStackTrace t)))))))))
 
 ;; highlighting
 

@@ -3,7 +3,7 @@
 
 (ns clooj.clj-inspector.vars
   (:require
-   [clj-inspector.jars :refer :all]
+   [clooj.clj-inspector.jars :refer :all]
    [clojure.string :as str])
   (:import
    (clojure.lang LineNumberingPushbackReader)

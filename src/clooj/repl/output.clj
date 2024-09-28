@@ -1,9 +1,8 @@
 (ns clooj.repl.output
   (:import
-   (java.awt Point Rectangle)
-   (java.util.concurrent.atomic AtomicBoolean AtomicInteger)
-   (javax.swing JFrame JScrollPane JSplitPane JSlider JTextArea
-                SwingUtilities)
+   (java.awt Graphics)
+   (java.util.concurrent.atomic AtomicInteger)
+   (javax.swing JComponent JFrame JScrollPane JSlider JSplitPane JTextArea)
    (javax.swing.event DocumentEvent DocumentListener)))
 
 (defn end-position
@@ -16,17 +15,19 @@
 (defn tailing-scroll-pane
   "Embeds the given JTextArea in a JScrollPane that scrolls
    to the bottom whenever text is inserted or appended."
-  [text-area]
+  [^JTextArea text-area]
   (let [scroll-offset (AtomicInteger. -1)
         scroll-pane
         (proxy [JScrollPane] [text-area]
           (paintComponent [graphics]
             (let [offset (.getAndSet scroll-offset -1)]
               (when (not= -1 offset)
-                (.. this
+                (.. ^JScrollPane this
                     getVerticalScrollBar
                     (setValue (.y (.modelToView text-area offset))))))
-            (proxy-super paintComponent graphics)))
+            ;; Seems to be impossible to make this a non-reflected call, since
+            ;; the superclass implementation is protected
+            (proxy-super paintComponent ^Graphics graphics)))
         set-scroll-offset (fn [e]
                             (.set scroll-offset (end-position e))
                             (.repaint scroll-pane))]
@@ -63,7 +64,7 @@
 (defn write-lines
   "Write n lines of text (positive integers) in
    the text-area"
-  [text-area n]
+  [^JTextArea text-area n]
   (dotimes [i n]
     (.append text-area (str i "\n"))))
 

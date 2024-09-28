@@ -5,8 +5,9 @@
 
 (ns clooj.protocols)
 
-;; Repl protocol
-
-(defprotocol Repl
+(defprotocol ClojureRuntime
+  (capabilities [this])
   (evaluate [this code] "Evaluate code (a string).")
-  (close [this] "Stop the repl instance."))
+  (close [this] "Stop the repl instance.")
+  (ns-info [this ns])
+  (var-info [this ns]))

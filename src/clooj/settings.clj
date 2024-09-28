@@ -19,7 +19,8 @@
    java.awt.Graphics
    java.awt.FontMetrics
    javax.swing.ComboBoxModel
-   javax.swing.JFrame))
+   javax.swing.JFrame
+   java.awt.event.ActionEvent))
 
 (set! *warn-on-reflection* true)
 

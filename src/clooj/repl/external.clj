@@ -5,38 +5,40 @@
 
 (ns clooj.repl.external
   (:require
-   [clooj.clj-inspector.jars :as jars]
    [clojure.java.io :as io]
-   [clooj.help :as help]
+   [clojure.string :as str]
+   [clooj.clj-inspector.jars :as jars]
    [clooj.protocols :as protocols]
-   [clooj.repl.lein :as lein]
    [clooj.utils :as utils])
   (:import
-   (java.io File PrintWriter)
+   (java.io File PrintWriter Writer)
+   (java.lang Process)
    (java.net URL URLDecoder)
-   (java.util.concurrent LinkedBlockingQueue)))
+   (java.util List)
+   (java.util.zip ZipEntry)))
+
+(set! *warn-on-reflection* true)
 
 (defn own-clojure-jar
   "Locate the clojure jar being used by clooj (last resort)."
   []
-  (let [class-loader (.getClassLoader clojure.lang.RT)]
-    (when-let [url (.findResource class-loader "clojure/lang/RT.class")]
-      (-> url .getFile URL. .getFile URLDecoder/decode (.split "!/") first))))
+  (when-let [url (io/resource "clojure/lang/RT.class")]
+    (-> url .getFile URL. .getFile URLDecoder/decode (str/split #"!/") first)))
 
 (defn jar-contains-class?
   "Does the jar contain a particular class file? Specify the
    classname in a string, e.g. \"clojure.lang.RT\""
   [jar classname]
   (let [entries (jars/get-entries-in-jar jar)
-        filenames (map #(.getName %) entries)
-        desired (str (.replace classname "." "/") ".class")]
+        filenames (map #(.getName ^ZipEntry %) entries)
+        desired (str (str/replace classname #"\." "/") ".class")]
     (not (nil? (some #(= % desired) filenames)))))
 
 (defn clojure-jar-location
   "Find the location of a clojure jar in a project."
   [^String project-path]
   (let [lib-dir (str project-path "/lib")
-        jars (filter #(.contains (.getName %) "clojure")
+        jars (filter #(.contains (.getName ^File %) "clojure")
                      (jars/jar-files lib-dir))]
     (first (filter #(jar-contains-class? % "clojure.lang.RT") jars))))
 
@@ -60,10 +62,10 @@
 
 (defn repl-process
   "Start an external repl process by running clojure.main."
-  [project-path classpath-items]
+  ^Process [project-path classpath-items]
   (let [classpath-str (apply str (interpose File/pathSeparatorChar classpath-items))]
     (.start
-     (doto (ProcessBuilder. [(java-binary) "-cp" classpath-str "clojure.main"])
+     (doto (ProcessBuilder. ^String/1 (into-array String [(java-binary) "-cp" classpath-str "clojure.main"]))
        (.redirectErrorStream true)
        (.directory (io/file (or project-path ".")))))))
 
@@ -71,7 +73,7 @@
   "Launch an outside process with a clojure repl."
   [project-path classpath-items result-writer]
   (let [process (repl-process project-path classpath-items)
-        input-writer  (-> process .getOutputStream (PrintWriter. true))
+        input-writer  (PrintWriter. (.getOutputStream process) true)
         is (.getInputStream process)]
     (future (utils/copy-input-stream-to-writer is result-writer)); :buffer-size 10))
     {:input-writer input-writer
@@ -89,7 +91,7 @@
 
 (defn close
   "Close the repl specified in the repl-map."
-  [{:keys [input-writer result-writer process] :as repl-map}]
+  [{:keys [^Writer input-writer ^Writer result-writer ^Process process] :as repl-map}]
   (doto input-writer .flush .close)
   (.flush result-writer)
   (.destroy process))
@@ -99,7 +101,7 @@
    are printed to result-writer."
   [project-path classpath-items result-writer]
   (let [repl-map (launch-repl project-path classpath-items result-writer)]
-    (reify protocols/Repl
+    (reify protocols/ClojureRuntime
       (evaluate [this code]
         (evaluate-code repl-map code))
       (close [this]

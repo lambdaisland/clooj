@@ -14,6 +14,7 @@
       (with-out-str (println t)))))
 
 (defn start-repl [^Writer result-writer]
-  (reify proto/Repl
+  (reify proto/ClojureRuntime
     (evaluate [this code]
+      (println "EVAL" code)
       (.write result-writer (eval-str code)))))
