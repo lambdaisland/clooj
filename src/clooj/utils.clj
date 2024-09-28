@@ -325,7 +325,7 @@
 
 ;; buttons
 
-(defn create-button [^String text fn]
+(defn create-button ^JButton [^String text fn]
   (doto (JButton. text)
     (.addActionListener
      (reify ActionListener

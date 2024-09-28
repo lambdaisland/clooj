@@ -79,12 +79,12 @@
   "Generates a sequence of the components in a file path."
   [the-file]
   (->>
-    (-> the-file
-        io/file
-        .getAbsolutePath
-        (.split File/separator))
-    (remove empty?)
-    (remove #(= % "."))))
+   (-> the-file
+       io/file
+       .getAbsolutePath
+       (.split File/separator))
+   (remove empty?)
+   (remove #(= % "."))))
 
 (defn file-ancestor?
   "In the file tree, returns true if descendant-file
@@ -128,12 +128,12 @@
 
 (defn set-tree-selection [^JTree tree path]
   (utils/awt-event
-    (when-let [node (path-to-node tree path)]
-      (let [node-path (.getPath node)
-            paths (map #(-> % user-object .getAbsolutePath) (rest node-path))]
-        (expand-paths tree paths)
-        (when-let [row (row-for-path tree path)]
-          (.setSelectionRow tree row))))))
+   (when-let [node (path-to-node tree path)]
+     (let [node-path (.getPath node)
+           paths (map #(-> % user-object .getAbsolutePath) (rest node-path))]
+       (expand-paths tree paths)
+       (when-let [row (row-for-path tree path)]
+         (.setSelectionRow tree row))))))
 
 (defn load-tree-selection [^JTree tree]
   (let [path (utils/read-value-from-prefs utils/clooj-prefs "tree-selection")]
@@ -159,9 +159,9 @@
    a sorted vector."
   []
   (->> (utils/read-value-from-prefs utils/clooj-prefs "project-set")
-      set
-      (sort-by #(.toLowerCase (.getName (io/file %))))
-      vec))
+       set
+       (sort-by #(.toLowerCase (.getName (io/file %))))
+       vec))
 
 (defn visible-children
   "Get a vector of a directory's children, if there are any.
@@ -198,7 +198,7 @@
     (toString [] "root")))
 
 (defn file-tree-model [projects]
-    (DefaultTreeModel. (root-node projects) false))
+  (DefaultTreeModel. (root-node projects) false))
 
 (defn update-project-tree [^JTree tree]
   (let [model (file-tree-model (vec @project-set))]

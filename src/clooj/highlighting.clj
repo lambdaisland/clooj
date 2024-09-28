@@ -34,8 +34,8 @@
 
 (defn highlight-brackets [text-comp good-enclosures bad-brackets]
   (utils/awt-event
-    (remove-highlights text-comp (get @highlights text-comp))
-    (swap! highlights assoc text-comp
-           (doall (concat
-                    (map #(highlight text-comp % Color/LIGHT_GRAY) good-enclosures)
-                    (map #(highlight text-comp % Color/PINK) bad-brackets))))))
+   (remove-highlights text-comp (get @highlights text-comp))
+   (swap! highlights assoc text-comp
+          (doall (concat
+                  (map #(highlight text-comp % Color/LIGHT_GRAY) good-enclosures)
+                  (map #(highlight text-comp % Color/PINK) bad-brackets))))))

@@ -1,13 +1,14 @@
-; Copyright (c) 2011-2013, Arthur Edelstein
-; All rights reserved.
-; Eclipse Public License 1.0
-; arthuredelstein@gmail.com
+                                        ; Copyright (c) 2011-2013, Arthur Edelstein
+                                        ; All rights reserved.
+                                        ; Eclipse Public License 1.0
+                                        ; arthuredelstein@gmail.com
 
 (ns clooj.repl.remote
   (:require
    [clojure.main :as m]
    [clojure.pprint :as pp])
   (:import
+   (clojure.lang LineNumberingPushbackReader)
    (java.io StringReader)))
 
 (def silence (atom false))
@@ -28,10 +29,9 @@
   "Read some text as code, as though it were located
    at a particular line number."
   [text line]
-  (read (proxy [clojure.lang.LineNumberingPushbackReader]
-          [(StringReader. (str "(do " text ")"))]
+  (read (proxy [LineNumberingPushbackReader] [(StringReader. (str "(do " text ")"))]
           (getLineNumber []
-                         (+ -1 line (proxy-super getLineNumber))))))
+            (+ -1 line (proxy-super getLineNumber))))))
 
 (defn eval-code-at
   "Evaluate some text as code, as though it were located
@@ -45,12 +45,12 @@
    prints nicely and suppresses silent evaluations."
   []
   (m/repl
-    :print (fn [x]
-             (if @silence
-               (do
-                 (reset! silence false)
-                 (println))
-               (if (var? x)
-                 (println x)
-                 (pp/pprint x))))
-    :prompt #(do (m/repl-prompt) (.flush *out*))))
+   :print (fn [x]
+            (if @silence
+              (do
+                (reset! silence false)
+                (println))
+              (if (var? x)
+                (println x)
+                (pp/pprint x))))
+   :prompt #(do (m/repl-prompt) (.flush *out*))))

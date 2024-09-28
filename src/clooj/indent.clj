@@ -70,8 +70,8 @@
 
 (defn fix-indent-selected-lines [text-comp]
   (utils/awt-event
-    (dorun (map #(fix-indent text-comp %)
-                (utils/get-selected-lines text-comp)))))
+   (dorun (map #(fix-indent text-comp %)
+               (utils/get-selected-lines text-comp)))))
 
 (defn auto-indent-str [text-comp offset]
   (let [indent-size (or (compute-indent-size text-comp offset) 0)]

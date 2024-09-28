@@ -112,7 +112,7 @@
                     "src"  File/separator)]
     (utils/when-lets [f @(app :file)
                       path (.getAbsolutePath f)]
-      (subs path (count prefix)))))
+                     (subs path (count prefix)))))
 
 (defn selected-region [ta]
   (if-let [text (.getSelectedText ta)]

@@ -46,9 +46,11 @@
   DynamicWordHighlighter
   (addWordToHighlight [word token-type]))
 
+(def clojure-token-maker
+  (delay (.getTokenMaker (TokenMakerFactory/getDefaultInstance) "text/clojure")))
+
 (defn make-rsyntax-text-area ^RSyntaxTextArea []
-  (let [tmf (TokenMakerFactory/getDefaultInstance)
-        ^AbstractTokenMaker token-maker (.getTokenMaker tmf "text/clojure")
+  (let [^AbstractTokenMaker token-maker @clojure-token-maker
         token-map (.getWordsToHighlight token-maker)
         rsta (proxy [RSyntaxTextArea] []
                (addWordToHighlight [word token-type]
@@ -56,7 +58,7 @@
                    (.put token-map word token-type)
                    token-type)))
         ^RSyntaxDocument document (.getDocument rsta)]
-    (.setTokenMakerFactory document tmf)
+    (.setTokenMakerFactory document (TokenMakerFactory/getDefaultInstance))
     rsta))
 
 (defn make-text-area ^RSyntaxTextArea [wrap]
@@ -87,14 +89,14 @@
 
 (defn load-settings []
   (atom
-    (merge default-settings
-           (utils/read-value-from-prefs utils/clooj-prefs "settings"))))
+   (merge default-settings
+          (utils/read-value-from-prefs utils/clooj-prefs "settings"))))
 
 (defn save-settings [settings]
   (utils/write-value-to-prefs
-    utils/clooj-prefs
-    "settings"
-    settings))
+   utils/clooj-prefs
+   "settings"
+   settings))
 
 (defn apply-settings [app settings]
   (letfn [(set-line-wrapping [text-area mode]
@@ -443,32 +445,32 @@
                     :classpath-queue (LinkedBlockingQueue.)
                     :changed false}
                    (utils/gen-map
-                     doc-label
-                     repl-out-text-area
-                     repl-in-text-area
-                     repl-label
-                     frame
-                     help-text-area
-                     help-text-scroll-pane
-                     repl-out-scroll-pane
-                     docs-tree
-                     docs-tree-scroll-pane
-                     docs-tree-panel
-                     docs-tree-label
-                     search-text-area
-                     search-match-case-checkbox
-                     search-regex-checkbox
-                     search-close-button
-                     pos-label
-                     repl-out-writer
-                     doc-split-pane
-                     repl-split-pane
-                     split-pane
-                     arglist-label
-                     completion-list
-                     completion-scroll-pane
-                     completion-panel
-                     ))
+                    doc-label
+                    repl-out-text-area
+                    repl-in-text-area
+                    repl-label
+                    frame
+                    help-text-area
+                    help-text-scroll-pane
+                    repl-out-scroll-pane
+                    docs-tree
+                    docs-tree-scroll-pane
+                    docs-tree-panel
+                    docs-tree-label
+                    search-text-area
+                    search-match-case-checkbox
+                    search-regex-checkbox
+                    search-close-button
+                    pos-label
+                    repl-out-writer
+                    doc-split-pane
+                    repl-split-pane
+                    split-pane
+                    arglist-label
+                    completion-list
+                    completion-scroll-pane
+                    completion-panel
+                    ))
         doc-text-area (new-doc-text-area app)
         doc-scroll-pane (make-scroll-pane doc-text-area)
         app (assoc app :doc-text-area doc-text-area)
@@ -551,8 +553,9 @@
         txt (utils/get-text-str (:doc-text-area app))]
     (send-off temp-file-manager
               (let [temp-file (project/get-temp-file f)]
-                (fn [_] (when (and f temp-file (.exists temp-file))
-                          (dump-temp-doc app f txt))
+                (fn [_]
+                  (when (and f temp-file (.exists temp-file))
+                    (dump-temp-doc app f txt))
                   0))))
   (await temp-file-manager)
   (let [^JFrame frame (:frame app)

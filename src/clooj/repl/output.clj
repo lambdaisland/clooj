@@ -20,22 +20,22 @@
   (let [scroll-offset (AtomicInteger. -1)
         scroll-pane
         (proxy [JScrollPane] [text-area]
-         (paintComponent [graphics]
-           (let [offset (.getAndSet scroll-offset -1)]
-             (when (not= -1 offset)
-               (.. this
-                   getVerticalScrollBar
-                   (setValue (.y (.modelToView text-area offset))))))
-           (proxy-super paintComponent graphics)))
+          (paintComponent [graphics]
+            (let [offset (.getAndSet scroll-offset -1)]
+              (when (not= -1 offset)
+                (.. this
+                    getVerticalScrollBar
+                    (setValue (.y (.modelToView text-area offset))))))
+            (proxy-super paintComponent graphics)))
         set-scroll-offset (fn [e]
                             (.set scroll-offset (end-position e))
                             (.repaint scroll-pane))]
-        (.. text-area getDocument
-            (addDocumentListener
-              (proxy [DocumentListener] []
-                (changedUpdate [e] (set-scroll-offset e))
-                (insertUpdate [e] (set-scroll-offset e))
-                (removeUpdate [e]))))
+    (.. text-area getDocument
+        (addDocumentListener
+         (proxy [DocumentListener] []
+           (changedUpdate [e] (set-scroll-offset e))
+           (insertUpdate [e] (set-scroll-offset e))
+           (removeUpdate [e]))))
     scroll-pane))
 
 ;; manual tests

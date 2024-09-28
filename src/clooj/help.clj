@@ -58,7 +58,7 @@
            :else (jars/jar-files item)))))
 
 (defn get-sources-from-jars [project-path classpath]
-   (->> (classpath-to-jars project-path classpath)
+  (->> (classpath-to-jars project-path classpath)
        (mapcat jars/clj-sources-from-jar)
        merge
        vals))
@@ -74,10 +74,10 @@
 
 (defn get-var-maps [project-path classpath]
   (make-var-super-map
-      (mapcat #(vars/analyze-clojure-source "clj" %)
-              (concat
-                (get-sources-from-jars project-path classpath)
-                (get-sources-from-clj-files classpath)))))
+   (mapcat #(vars/analyze-clojure-source "clj" %)
+           (concat
+            (get-sources-from-jars project-path classpath)
+            (get-sources-from-clj-files classpath)))))
 
 (defn update-var-maps! [project-path classpath]
   (send-off var-maps-agent #(merge % (get-var-maps project-path classpath))))
@@ -117,9 +117,9 @@
 
 (defn arglist-from-var-map [m]
   (or
-    (when-let [args (:arglists m)]
-      (str (-> m :ns) "/" (:name m) ": " args))
-    ""))
+   (when-let [args (:arglists m)]
+     (str (-> m :ns) "/" (:name m) ": " args))
+   ""))
 
 (defn token-from-caret-pos [text pos]
   (head-token (find-form-string text pos)))
@@ -134,7 +134,8 @@
 (defn arglist-from-token [app ns token]
   (or (special-forms token)
       (when-let [repl (:repl app)]
-        (-> @var-maps-agent (get (var-from-token app ns token))
+        (-> @var-maps-agent
+            (get (var-from-token app ns token))
             arglist-from-var-map))))
 
 (defn arglist-from-caret-pos [app ns text pos]
@@ -366,14 +367,14 @@
 
 (defn setup-tab-help [text-comp app]
   (utils/attach-action-keys text-comp
-    ["TAB" #(show-tab-help app text-comp inc)]
-    ["shift TAB" #(show-tab-help app text-comp dec)]
-    ["ESCAPE" #(hide-tab-help app)])
+                            ["TAB" #(show-tab-help app text-comp inc)]
+                            ["shift TAB" #(show-tab-help app text-comp dec)]
+                            ["ESCAPE" #(hide-tab-help app)])
   (utils/attach-child-action-keys text-comp
-    ["ENTER" #(@help-state :visible)
-             #(do (hide-tab-help app)
-                  (.start (Thread. (fn [] (load-dependencies app (get-list-artifact app)))))
-                  (update-token app text-comp (get-list-token app)))]))
+                                  ["ENTER" #(@help-state :visible)
+                                   #(do (hide-tab-help app)
+                                        (.start (Thread. (fn [] (load-dependencies app (get-list-artifact app)))))
+                                        (update-token app text-comp (get-list-token app)))]))
 
 (defn find-focused-text-pane [app]
   (let [t1 (app :doc-text-area)

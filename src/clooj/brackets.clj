@@ -56,10 +56,10 @@
           e (when (mismatched-brackets (ffirst stack) c)
               (list (first stack) [c pos]))
           new-errs (if e (concat errs e) errs)]
-        (if (next t)
-          (recur (next t) (inc pos) new-stack new-errs)
-          (filter identity
-                  (map second (concat new-stack errs)))))))
+      (if (next t)
+        (recur (next t) (inc pos) new-stack new-errs)
+        (filter identity
+                (map second (concat new-stack errs)))))))
 
 (defn blank-line-matcher ^java.util.regex.Matcher [s]
   (re-matcher #"[\n\r]\s*?[\n\r]" s))

@@ -1,16 +1,18 @@
-; Copyright (c) 2011-2013, Arthur Edelstein
-; All rights reserved.
-; Eclipse Public License 1.0
-; arthuredelstein@gmail.com
+;; Copyright (c) 2011-2013, Arthur Edelstein
+;; All rights reserved.
+;; Eclipse Public License 1.0
+;; arthuredelstein@gmail.com
 
 (ns clooj.repl.lein
-  (:import (java.io BufferedReader File InputStreamReader))
-  (:require [nrepl.core :as nrepl]
-            [clojure.java.io :as io]
-            [clooj.protocols :as protocols]
-            [clooj.utils :as utils]))
+  (:import
+   (java.io BufferedReader File InputStreamReader))
+  (:require
+   [nrepl.core :as nrepl]
+   [clojure.java.io :as io]
+   [clooj.protocols :as protocols]
+   [clooj.utils :as utils]))
 
-; Documentation for nrepl at https://github.com/clojure/tools.nrepl
+;; Documentation for nrepl at https://github.com/clojure/tools.nrepl
 
 ;; nrepl handling
 
@@ -119,4 +121,4 @@
       first
       (.split File/pathSeparator)))
 
-  
+

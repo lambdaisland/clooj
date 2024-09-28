@@ -63,9 +63,9 @@
   [project-path classpath-items]
   (let [classpath-str (apply str (interpose File/pathSeparatorChar classpath-items))]
     (.start
-      (doto (ProcessBuilder. [(java-binary) "-cp" classpath-str "clojure.main"])
-        (.redirectErrorStream true)
-        (.directory (io/file (or project-path ".")))))))
+     (doto (ProcessBuilder. [(java-binary) "-cp" classpath-str "clojure.main"])
+       (.redirectErrorStream true)
+       (.directory (io/file (or project-path ".")))))))
 
 (defn launch-repl
   "Launch an outside process with a clojure repl."
