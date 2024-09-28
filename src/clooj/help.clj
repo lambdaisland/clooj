@@ -5,11 +5,12 @@
 
 (ns clooj.help
   (:require
-   [clooj.clj-inspector.jars :as jars]
-   [clooj.clj-inspector.vars :as vars]
    [clojure.repl]
    [clojure.string :as str]
    [clooj.brackets :as brackets]
+   [clooj.clj-inspector.jars :as jars]
+   [clooj.clj-inspector.vars :as vars]
+   [clooj.protocols :as proto]
    [clooj.text-area :as text-area]
    [clooj.utils :as utils])
   (:import
@@ -26,30 +27,30 @@
 
 ;; from http://clojure.org/special_forms
 (def special-forms
-  {"def" "(def symbol init?)"
-   "if"  "(if test then else?)"
-   "do"  "(do exprs*)"
-   "let" "(let [bindings* ] exprs*)"
-   "quote" "(quote form)"
-   "var" "(var symbol)"
-   "fn"  "(fn name? [params* ] exprs*)"
-   "loop" "(loop [bindings* ] exprs*)"
-   "recur" "(recur exprs*)"
-   "throw" "(throw expr)"
-   "try"   "(try expr* catch-clause* finally-clause?)"
-   "catch" "(catch classname name expr*)"
-   "monitor-enter" "Avoid!"
-   "monitor-exit"  "Avoid!"})
+  '{def "(def symbol init?)"
+    if  "(if test then else?)"
+    do  "(do exprs*)"
+    let "(let [bindings* ] exprs*)"
+    quote "(quote form)"
+    var "(var symbol)"
+    fn  "(fn name? [params* ] exprs*)"
+    loop "(loop [bindings* ] exprs*)"
+    recur "(recur exprs*)"
+    throw "(throw expr)"
+    try   "(try expr* catch-clause* finally-clause?)"
+    catch "(catch classname name expr*)"
+    monitor-enter "Avoid!"
+    monitor-exit  "Avoid!"})
 
-(defn present-item ^String [item]
+(defn- present-item ^String [item]
   (str (:name item) " [" (:ns item) "]"))
 
-(defn make-var-super-map [var-maps]
+(defn- make-var-super-map [var-maps]
   (into {}
         (for [var-map var-maps]
           [[(:ns var-map) (:name var-map)] var-map])))
 
-(defn classpath-to-jars [project-path classpath]
+(defn- classpath-to-jars [project-path classpath]
   (apply
    concat
    (for [item classpath]
@@ -57,13 +58,13 @@
            (str/ends-with? item ".jar") (list (File. ^String item))
            :else (jars/jar-files item)))))
 
-(defn get-sources-from-jars [project-path classpath]
+(defn- get-sources-from-jars [project-path classpath]
   (->> (classpath-to-jars project-path classpath)
        (mapcat jars/clj-sources-from-jar)
        merge
        vals))
 
-(defn get-sources-from-clj-files [classpath]
+(defn- get-sources-from-clj-files [classpath]
   (map slurp
        (apply concat
               (for [item classpath]
@@ -72,24 +73,24 @@
                     (filter #(str/ends-with? (.getName ^File %) ".clj")
                             (file-seq item-file))))))))
 
-(defn get-var-maps [project-path classpath]
+(defn- get-var-maps [project-path classpath]
   (make-var-super-map
    (mapcat #(vars/analyze-clojure-source "clj" %)
            (concat
             (get-sources-from-jars project-path classpath)
             (get-sources-from-clj-files classpath)))))
 
-(defn update-var-maps! [project-path classpath]
+(defn- update-var-maps! [project-path classpath]
   (send-off var-maps-agent #(merge % (get-var-maps project-path classpath))))
 
-(defn find-form-string [text pos]
+(defn- find-form-string [text pos]
   (let [[left right] (brackets/find-enclosing-brackets text pos)]
     (when (> (count text) left)
       (subs text (inc left)))))
 
 (def non-token-chars [\; \~ \@ \( \) \[ \] \{ \} \  \. \newline \/ \" \'])
 
-(defn local-token-location [text ^long pos]
+(defn- local-token-location [text ^long pos]
   (let [n (long (count text))
         pos (Math/min (Math/max pos 0) n)]
     [(loop [p (dec pos)]
@@ -103,50 +104,20 @@
          p
          (recur (inc p))))]))
 
-(defn head-token [form-string]
+(defn- head-token [form-string]
   (when form-string
     (second
-     (re-find #"(.*?)[\s|\)|$]"
+     (re-find #"([^;]*?)[\s|\)|$]"
               (str (str/trim form-string) " ")))))
 
-(defn current-ns-form [app]
+(defn- current-ns-form [app]
   (-> app :doc-text-area text-area/text read-string))
-
-(defn ns-available-names [app]
-  (vars/parse-ns-form (current-ns-form app)))
-
-(defn arglist-from-var-map [m]
-  (or
-   (when-let [args (:arglists m)]
-     (str (-> m :ns) "/" (:name m) ": " args))
-   ""))
-
-(defn token-from-caret-pos [text pos]
-  (head-token (find-form-string text pos)))
-
-(defn var-from-token [app current-ns token]
-  (when token
-    (if (str/includes? token "/")
-      (vec (str/split token #"/"))
-      (or ((ns-available-names app) token)
-          [current-ns token]))))
-
-(defn arglist-from-token [app ns token]
-  (or (special-forms token)
-      (when-let [repl (:repl app)]
-        (-> @var-maps-agent
-            (get (var-from-token app ns token))
-            arglist-from-var-map))))
-
-(defn arglist-from-caret-pos [app ns text pos]
-  (let [token (token-from-caret-pos text pos)]
-    (arglist-from-token app ns token)))
 
 ;; tab help
 
 (defonce help-state (atom {:visible false :token nil :pos nil}))
 
-(defn var-map [v]
+(defn- var-map [v]
   (when-let [m (meta v)]
     (let [ns (:ns m)]
       (-> m
@@ -154,7 +125,7 @@
           (assoc :source (binding [*ns* ns]
                            (clojure.repl/source-fn (symbol (str ns "/" name)))))))))
 
-(defn var-help [var-map]
+(defn- var-help [var-map]
   (let [{:keys [doc ns name arglists source]} var-map]
     (str name
          (if ns (str " [" ns "]") "") "\n"
@@ -171,7 +142,7 @@
                   source))
            "No source found."))))
 
-(defn create-param-list
+(defn- create-param-list
   ([^Method method-or-constructor static]
    (str " (["
         (let [type-names (map #(.getSimpleName ^Class %)
@@ -182,11 +153,11 @@
   ([method-or-constructor]
    (create-param-list method-or-constructor true)))
 
-(defn constructor-help [^Method constructor]
+(defn- constructor-help [^Method constructor]
   (str (.. constructor getDeclaringClass getSimpleName) "."
        (create-param-list constructor)))
 
-(defn method-help [^Method method]
+(defn- method-help [^Method method]
   (let [stat (Modifier/isStatic (.getModifiers method))]
     (str
      (if stat
@@ -196,7 +167,7 @@
      (create-param-list method stat)
      " --> " (.getName (.getReturnType method)))))
 
-(defn field-help [^Field field]
+(defn- field-help [^Field field]
   (let [c (.. field getDeclaringClass getSimpleName)]
     (str
      (if (Modifier/isStatic (.getModifiers field))
@@ -206,7 +177,7 @@
               (str " --> " (.. field (get nil) toString))))
        (str "." (.getName field) " --> " (.getName (.getType field)))))))
 
-(defn class-help [^Class c]
+(defn- class-help [^Class c]
   (apply str
          (concat
           [(present-item c) "\n  java class"]
@@ -226,31 +197,31 @@
                       (for [field (.getFields c)]
                         (field-help field)))))))
 
-(defn item-help [item]
+(defn- item-help [item]
   (cond (map? item) (var-help item)
         (class? item) (class-help item)))
 
-(defn set-first-component [^JSplitPane split-pane comp]
+(defn- set-first-component [^JSplitPane split-pane comp]
   (let [loc (.getDividerLocation split-pane)]
     (.setTopComponent split-pane comp)
     (.setDividerLocation split-pane loc)))
 
-(defn clock-num [i n]
+(defn- clock-num [i n]
   (if (zero? n)
     0
     (cond (< i 0) (dec n)
           (>= i n) 0
           :else i)))
 
-(defn list-size [^JList list]
+(defn- list-size [^JList list]
   (-> list .getModel .getSize))
 
-(defn match-items [pattern items]
+(defn- match-items [pattern items]
   (->> items
        (filter #(re-find pattern (:name %)))
        (sort-by #(str/lower-case (:name %)))))
 
-(defn hits [token]
+(defn- hits [token]
   (let [token-pat1 (re-pattern (str "(?i)\\A\\Q" token "\\E"))
         token-pat2 (re-pattern (str "(?i)\\A.\\Q" token "\\E"))
         items (vals @var-maps-agent)
@@ -258,7 +229,7 @@
         others (match-items token-pat2 items)]
     (concat best others)))
 
-(defn show-completion-list [{:keys [^JList completion-list
+(defn- show-completion-list [{:keys [^JList completion-list
                                     repl-split-pane
                                     help-text-scroll-pane
                                     doc-split-pane
@@ -272,7 +243,7 @@
     (.ensureIndexIsVisible completion-list
                            (.getSelectedIndex completion-list))))
 
-(defn advance-help-list [app token index-change-fn]
+(defn- advance-help-list [app token index-change-fn]
   (let [^JList help-list (app :completion-list)]
     (if (not= token (@help-state :token))
       (do
@@ -288,35 +259,26 @@
                               n))))))
   (show-completion-list app))
 
-(defn get-list-item [app]
+(defn- get-list-item [app]
   (.getSelectedValue ^JList (:completion-list app)))
 
-(defn get-list-artifact [app]
+(defn- get-list-artifact [app]
   (when-let [artifact (:artifact (get-list-item app))]
     (binding [*read-eval* false]
       (read-string artifact))))
 
-(defn get-list-token [app]
+(defn- get-list-token [app]
   (let [val (get-list-item app)]
     (str (:ns val) "/" (:name val))))
 
-(defn show-help-text [app choice]
+(defn- show-help-text [app choice]
   (let [help-text (or (when choice (item-help choice)) "")]
     (text-area/set-text (app :help-text-area) help-text))
   (.setViewPosition
    (.getViewport ^JScrollPane (:help-text-scroll-pane app))
    (Point. (int 0) (int 0))))
 
-(defn show-tab-help [app text-comp index-change-fn]
-  (utils/awt-event
-    (let [text (utils/get-text-str text-comp)
-          pos (text-area/caret-position text-comp)
-          [start stop] (local-token-location text pos)]
-      (when-let [token (subs text start stop)]
-        (swap! help-state assoc :pos start :visible true)
-        (advance-help-list app token index-change-fn)))))
-
-(defn hide-tab-help [app]
+(defn- hide-tab-help [app]
   (utils/awt-event
     (when (@help-state :visible)
       (set-first-component (app :repl-split-pane)
@@ -326,24 +288,15 @@
       (.setText ^JLabel (app :repl-label) "Clojure REPL output"))
     (swap! help-state assoc :visible false :pos nil)))
 
-(defn help-handle-caret-move [app text-comp]
-  (utils/awt-event
-    (when (@help-state :visible)
-      (let [[start _] (local-token-location (utils/get-text-str text-comp)
-                                            (text-area/caret-position text-comp))]
-        (if-not (= start (@help-state :pos))
-          (hide-tab-help app)
-          (show-tab-help app text-comp identity))))))
-
-(defn update-ns-form [app]
+(defn- update-ns-form [app]
   (current-ns-form app))
 
-(defn add-classpath-to-repl
+(defn- add-classpath-to-repl
   [app files]
   (.addAll ^java.util.concurrent.BlockingQueue (app :classpath-queue)
            files))
 
-(defn load-dependencies [app artifact]
+(defn- load-dependencies [app artifact]
   (utils/awt-event (utils/append-text (app :repl-out-text-area)
                                       (str "\nLoading " artifact " ... ")))
   ;; FIXME: use lambdaisland.classpath
@@ -356,7 +309,7 @@
   (utils/append-text (app :repl-out-text-area)
                      (str "done.")))
 
-(defn update-token [app text-comp new-token]
+(defn- update-token [app text-comp new-token]
   (utils/awt-event
     (let [[start stop] (local-token-location
                         (utils/get-text-str text-comp)
@@ -365,7 +318,55 @@
       (when (and (seq new-token) (pos? (.getSize (.getModel ^JList (:completion-list app)))))
         (text-area/replace-str text-comp start len new-token)))))
 
+(defn- resolve-var-info [repl {:keys [aliases mappings] :as ns-info} var-sym]
+  (doto (if (qualified-symbol? var-sym)
+          (or (when-let [alias (get aliases (symbol (namespace var-sym)))]
+                (proto/var-info repl (symbol (str alias) (name var-sym))))
+              (proto/var-info repl var-sym))
+          (or (proto/var-info repl (symbol (str (:name ns-info)) (str var-sym)))
+              (proto/var-info repl (get mappings var-sym))))
+    tap>))
+
+;; Public API
+
+(defn token-from-caret-pos [text pos]
+  (let [t (head-token (find-form-string text pos))]
+    (when-not (str/blank? t)
+      t)))
+
+(defn arglist-from-caret-pos [app ns text pos]
+  (when-let [token (token-from-caret-pos text pos)]
+    (let [token (symbol token)]
+      (if-let [s (get special-forms token)]
+        s
+        (let [repl @(:repl app)
+              ns-info (proto/ns-info repl (symbol ns))
+              {:keys [ns name arglists] :as var-info} (resolve-var-info repl ns-info token)]
+          (str/join " " (map #(cons (symbol (str ns) (str name)) %) arglists)))))))
+
+(defn show-tab-help [app text-comp index-change-fn]
+  (def show-tab-help* [app text-comp index-change-fn])
+  (utils/awt-event
+    (let [text (utils/get-text-str text-comp)
+          pos (text-area/caret-position text-comp)
+          [start stop] (local-token-location text pos)]
+      (when-let [token (subs text start stop)]
+        (swap! help-state assoc :pos start :visible true)
+        (advance-help-list app token index-change-fn)))))
+
+
+(defn help-handle-caret-move [app text-comp]
+  (def help-handle-caret-move* [app text-comp])
+  (utils/awt-event
+    (when (@help-state :visible)
+      (let [[start _] (local-token-location (utils/get-text-str text-comp)
+                                            (text-area/caret-position text-comp))]
+        (if-not (= start (@help-state :pos))
+          (hide-tab-help app)
+          (show-tab-help app text-comp identity))))))
+
 (defn setup-tab-help [text-comp app]
+  (def setup-tab-help* [text-comp app])
   (utils/attach-action-keys text-comp
                             ["TAB" #(show-tab-help app text-comp inc)]
                             ["shift TAB" #(show-tab-help app text-comp dec)]
@@ -377,17 +378,14 @@
                                         (update-token app text-comp (get-list-token app)))]))
 
 (defn find-focused-text-pane [app]
+  (def find-focused-text-pane* [app])
   (let [t1 (app :doc-text-area)
         t2 (app :repl-in-text-area)]
     (cond (text-area/focus? t1) t1
           (text-area/focus? t2) t2)))
 
-(defmacro proxy-super*
-  "like [[clojure.core/proxy-super]], but add tag metadata to `this` to prevent reflection"
-  [meth & args]
-  `(proxy-call-with-super (fn [] (. ~'this ~meth ~@args))  ~'this ~(name meth)))
-
 (defn setup-completion-list [^JList l app]
+  (def  setup-completion-list* [^JList l app])
   (doto l
     (.setBackground (Color. 0xFF 0xFF 0xE8))
     (.setFocusable false)

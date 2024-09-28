@@ -5,6 +5,7 @@
 
 (ns clooj.utils
   (:require
+   [clojure.java.io :as io]
    [clojure.string :as str])
   (:import
    (java.awt FileDialog Point Window)
@@ -542,10 +543,5 @@
   "Reads a clj source file inside a jar from the current classpath."
   [clj-file]
   (try
-    (-> (Thread/currentThread)
-        .getContextClassLoader
-        (.getResource clj-file)
-        .toString
-        java.net.URL.
-        slurp)
+    (slurp (io/resource clj-file))
     (catch Exception _ nil)))

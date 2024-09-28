@@ -7,7 +7,6 @@
   (:require
    [clojure.string :as str]
    [clooj.brackets :as brackets]
-   [clooj.help :as help]
    [clooj.project :as project]
    [clooj.repl.external :as external]
    [clooj.repl.internal :as internal]
@@ -15,6 +14,8 @@
   (:import
    (clojure.lang LineNumberingPushbackReader)
    (java.io File PrintWriter StringReader Writer)))
+
+(require 'clooj.repl.remote)
 
 (def repl-history
   {:items (atom nil)
@@ -191,7 +192,6 @@
           #_(external/repl project-path classpath-items
                            (app :repl-out-writer))]
       (initialize-repl repl)
-      (help/update-var-maps! project-path classpath-items)
       (reset! (:repl app) repl))))
 
 (defn stop-repl [app]
