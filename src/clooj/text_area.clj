@@ -6,7 +6,7 @@
    (java.awt Point)
    (javax.swing JViewport)
    (javax.swing.event CaretListener DocumentListener)
-   (org.fife.ui.rsyntaxtextarea RSyntaxDocument RSyntaxTextArea)))
+   (org.fife.ui.rsyntaxtextarea AbstractTokenMaker RSyntaxDocument RSyntaxTextArea TokenMakerFactory)))
 
 (comment
   (clojure.reflect/reflect RSyntaxTextArea)
@@ -144,3 +144,26 @@
 (defn unindent [^RSyntaxTextArea text-comp]
   (when (.isFocusOwner text-comp)
     (remove-from-selected-row-headers text-comp " ")))
+
+(def clojure-token-maker
+  (delay (.getTokenMaker (TokenMakerFactory/getDefaultInstance) "text/clojure")))
+
+(defn make-rsyntax-text-area ^RSyntaxTextArea []
+  (let [^AbstractTokenMaker token-maker @clojure-token-maker
+        token-map (.getWordsToHighlight token-maker)
+        rsta (proxy [RSyntaxTextArea] []
+               (addWordToHighlight [word token-type]
+                 (do
+                   (.put token-map word token-type)
+                   token-type)))
+        ^RSyntaxDocument document (.getDocument rsta)]
+    (.setTokenMakerFactory document (TokenMakerFactory/getDefaultInstance))
+    rsta))
+
+(defn make-text-area ^RSyntaxTextArea [wrap]
+  (doto (RSyntaxTextArea.)
+    (.setAnimateBracketMatching false)
+    (.setBracketMatchingEnabled false)
+    (.setAutoIndentEnabled false)
+    (.setAntiAliasingEnabled true)
+    (.setLineWrap wrap)))

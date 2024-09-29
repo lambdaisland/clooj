@@ -10,17 +10,17 @@
    [clojure.set]
    [clojure.string :as str]
    [clooj.brackets :as brackets]
-   [clooj.middleware :as mw]
+   [clooj.gui :as gui]
    [clooj.help :as help]
    [clooj.highlighting :as highlighting]
    [clooj.indent :as indent]
+   [clooj.middleware :as mw]
    [clooj.navigate :as navigate]
    [clooj.project :as project]
    [clooj.repl.main :as repl]
    [clooj.repl.output :as repl-output]
    [clooj.search :as search]
    [clooj.settings :as settings]
-   [clooj.state :as state]
    [clooj.text-area :as text-area]
    [clooj.utils :as utils])
   (:import
@@ -30,9 +30,8 @@
    (java.util.concurrent LinkedBlockingQueue)
    (javax.swing BorderFactory JButton JCheckBox JComponent JFrame JLabel JList JMenuBar JOptionPane JPanel JScrollPane JTextArea JTextField JTree KeyStroke SpringLayout UIManager)
    (javax.swing.event TreeExpansionListener TreeSelectionListener)
-   (javax.swing.text DocumentFilter DocumentFilter$FilterBypass)
    (javax.swing.tree DefaultMutableTreeNode DefaultTreeModel TreeSelectionModel)
-   (org.fife.ui.rsyntaxtextarea AbstractTokenMaker RSyntaxDocument RSyntaxTextArea SyntaxConstants TokenMakerFactory)
+   (org.fife.ui.rsyntaxtextarea RSyntaxTextArea SyntaxConstants)
    (org.fife.ui.rtextarea RTextScrollPane)))
 
 (set! *warn-on-reflection* true)
@@ -40,8 +39,12 @@
 (def gap 5)
 
 (def embedded (atom false))
-
 (def changing-file (atom false))
+(defonce current-app (atom nil))
+(def caret-position (atom nil))
+(def highlight-agent (agent nil))
+(def arglist-agent (agent nil))
+(def temp-file-manager (agent 0))
 
 (defprotocol DynamicWordHighlighter
   (addWordToHighlight [this word token-type]))
@@ -50,28 +53,6 @@
   DynamicWordHighlighter
   (addWordToHighlight [word token-type]))
 
-(def clojure-token-maker
-  (delay (.getTokenMaker (TokenMakerFactory/getDefaultInstance) "text/clojure")))
-
-(defn make-rsyntax-text-area ^RSyntaxTextArea []
-  (let [^AbstractTokenMaker token-maker @clojure-token-maker
-        token-map (.getWordsToHighlight token-maker)
-        rsta (proxy [RSyntaxTextArea] []
-               (addWordToHighlight [word token-type]
-                 (do
-                   (.put token-map word token-type)
-                   token-type)))
-        ^RSyntaxDocument document (.getDocument rsta)]
-    (.setTokenMakerFactory document (TokenMakerFactory/getDefaultInstance))
-    rsta))
-
-(defn make-text-area ^RSyntaxTextArea [wrap]
-  (doto (RSyntaxTextArea.)
-    (.setAnimateBracketMatching false)
-    (.setBracketMatchingEnabled false)
-    (.setAutoIndentEnabled false)
-    (.setAntiAliasingEnabled true)
-    (.setLineWrap wrap)))
 
 (def get-clooj-version
   (memoize
@@ -80,76 +61,15 @@
 
 ;;;; settings
 
-(def default-settings
-  (merge
-   (zipmap [:font-name :font-size]
-           (cond (utils/is-mac) ["Monaco" 11]
-                 (utils/is-win) ["Courier New" 12]
-                 :else    ["Monospaced" 12]))
-   {:line-wrap-doc false
-    :line-wrap-repl-out false
-    :line-wrap-repl-in false
-    :show-only-monospaced-fonts true}))
-
-(defn load-settings []
-  (atom
-   (merge default-settings
-          (utils/read-value-from-prefs utils/clooj-prefs "settings"))))
-
-(defn save-settings [settings]
-  (utils/write-value-to-prefs
-   utils/clooj-prefs
-   "settings"
-   settings))
-
-(defn apply-settings [app settings]
-  (letfn [(set-line-wrapping [text-area mode]
-            (.setLineWrap ^RSyntaxTextArea text-area mode))
-          (set-font
-            [app font-name size]
-            (let [f (Font. font-name Font/PLAIN size)]
-              (utils/awt-event
-                (dorun (map #(.setFont ^JComponent (get app %) f)
-                            [:doc-text-area :repl-in-text-area
-                             :repl-out-text-area :arglist-label
-                             :search-text-area :help-text-area
-                             :completion-list])))))]
-
-    (set-line-wrapping
-     (:doc-text-area app)
-     (:line-wrap-doc settings))
-    (set-line-wrapping
-     (:repl-in-text-area app)
-     (:line-wrap-repl-in settings))
-    (set-line-wrapping
-     (:repl-out-text-area app)
-     (:line-wrap-repl-out settings))
-
-    (set-font app
-              (:font-name settings)
-              (:font-size settings)))
-  (reset! (:settings app) settings)
-  (save-settings settings))
+#_(cond (utils/is-mac) ["Monaco" 11]
+        (utils/is-win) ["Courier New" 12]
+        :else    ["Monospaced" 12])
 
 ;; font
-
-(defn resize-font [app fun]
-  (apply-settings app (update-in @(:settings app)
-                                 [:font-size]
-                                 fun)))
-
-(defn grow-font [app] (resize-font app inc))
-
-(defn shrink-font [app] (resize-font app dec))
 
 
 ;; caret finding
 
-(def highlight-agent (agent nil))
-
-(def arglist-agent (agent nil))
-
-(def caret-position (atom nil))
 
 (defn save-caret-position [app]
   (utils/when-lets [text-area (app :doc-text-area)
@@ -241,8 +161,6 @@
         (spit f txt)
         (utils/awt-event (.repaint ^JTree (:docs-tree app)))))
     (catch Exception e nil)))
-
-(def temp-file-manager (agent 0))
 
 (defn update-temp [app]
   (let [text-comp (app :doc-text-area)
@@ -355,7 +273,7 @@
      &nbsp;2. edit an existing file by selecting one at left.</html>")
 
 (defn move-caret-to-line
-  "Move caret to choosen line"
+  "Move caret to chosen line"
   [^JTextArea textarea]
   (let [current-line (fn []
                        (inc (.getLineOfOffset textarea (.getCaretPosition textarea))))
@@ -379,6 +297,7 @@
                                     project-dir)]
         (utils/awt-event (project/set-tree-selection (app :docs-tree) (.getAbsolutePath clj-file)))))))
 
+#_
 (defn attach-global-action-keys [comp app]
   (let [^JFrame frame (:frame app)]
     (utils/attach-action-keys
@@ -399,25 +318,35 @@
      (windowActivated [_]
        (fun)))))
 
-(defn new-doc-text-area [app comp-id]
-  (let [rsta (make-text-area false)]
-    (navigate/attach-navigation-keys rsta)
-    (double-click-selector rsta)
-    (text-area/add-caret-listener rsta #(display-caret-position % app))
-    (help/setup-tab-help rsta app)
-    (indent/setup-autoindent rsta comp-id)
-    (.setDocumentFilter (text-area/doc rsta)
-                        (mw/doc-filter comp-id))
-    rsta))
+(defn create-doc-text-area ^RSyntaxTextArea [app]
+  (gui/register
+   :doc-text-area
+   (let [rsta (text-area/make-text-area false)]
+     (navigate/attach-navigation-keys rsta)
+     (double-click-selector rsta)
+     (text-area/add-caret-listener rsta #(display-caret-position % app))
+     (help/setup-tab-help rsta app)
+     (indent/setup-autoindent :doc-text-area)
+     (.setDocumentFilter (text-area/doc rsta)
+                         (mw/doc-filter :doc-text-area))
+     rsta)))
+
+(defn create-frame ^JFrame []
+  (gui/register
+   :frame
+   (doto (JFrame.)
+     (.setBounds 25 50 950 700)
+     (.setLayout (SpringLayout.))
+     (.setTitle (str "clooj " (get-clooj-version))))))
 
 (defn create-app []
   (let [doc-text-panel (JPanel.)
         doc-label (JLabel. "Source Editor")
-        repl-out-text-area (make-text-area false)
+        repl-out-text-area (text-area/make-text-area false)
         repl-out-scroll-pane (repl-output/tailing-scroll-pane repl-out-text-area)
         repl-out-writer (repl/make-repl-writer repl-out-text-area)
-        repl-in-text-area (make-text-area false)
-        help-text-area (make-text-area true)
+        repl-in-text-area (text-area/make-text-area false)
+        help-text-area (text-area/make-text-area true)
         help-text-scroll-pane (JScrollPane. help-text-area)
         completion-panel (JPanel.)
         completion-label (JLabel. "Name search")
@@ -429,9 +358,8 @@
         search-close-button (JButton. "X")
         arglist-label (create-arglist-label)
         pos-label (JLabel.)
-        frame (JFrame.)
+        frame (create-frame)
         cp (.getContentPane frame)
-        layout (SpringLayout.)
         docs-tree (JTree.)
         docs-tree-scroll-pane (JScrollPane. docs-tree)
         docs-tree-panel (JPanel.)
@@ -477,15 +405,11 @@
                      completion-list
                      completion-scroll-pane
                      completion-panel))
-        doc-text-area (new-doc-text-area app :doc-text-area)
+        doc-text-area (create-doc-text-area app)
         doc-scroll-pane (make-scroll-pane doc-text-area)
-        app (assoc app :doc-text-area doc-text-area)
-        app (assoc app :settings (load-settings))]
-    (doto frame
-      (.setBounds 25 50 950 700)
-      (.setLayout layout)
-      (.add split-pane)
-      (.setTitle (str "clooj " (get-clooj-version))))
+        app (assoc app :doc-text-area doc-text-area)]
+    (.add frame split-pane)
+
     (doto doc-text-panel
       (.setLayout (SpringLayout.))
       (.add doc-scroll-pane)
@@ -536,7 +460,7 @@
     (utils/constrain-to-parent search-regex-checkbox :s -15 :w 475 :s 0 :w 550)
     (utils/constrain-to-parent search-close-button :s -15 :w 65 :s 0 :w 95)
     (utils/constrain-to-parent arglist-label :s -14 :w 80 :s -1 :e -10)
-    (.layoutContainer layout frame)
+    #_(.layoutContainer layout frame)
     ;; (exit-if-closed frame app)
     (setup-search-elements app)
     (activate-caret-highlighter app)
@@ -546,8 +470,8 @@
     (.setEditable repl-out-text-area false)
     (.setEditable help-text-area false)
     (.setBackground help-text-area (Color. 0xFF 0xFF 0xE8))
-    (indent/setup-autoindent repl-in-text-area :repl-in-text-area)
-
+    (indent/setup-autoindent :repl-in-text-area)
+    #_
     (dorun (map #(attach-global-action-keys % app)
                 [docs-tree doc-text-area repl-in-text-area repl-out-text-area (.getContentPane frame)]))
     app))
@@ -780,7 +704,7 @@
                     ["Increase font size" nil "cmd1 PLUS" #(grow-font app)]
                     ["Decrease font size" nil "cmd1 MINUS" #(shrink-font app)]
                     ["Settings" nil nil #(settings/show-settings-window
-                                          app apply-settings)])))
+                                          app identity #_apply-settings)])))
 
 
 (defn add-visibility-shortcut [app]
@@ -796,7 +720,6 @@
 
 ;; startup
 
-(defonce current-app (atom nil))
 
 (defn startup []
   (Thread/setDefaultUncaughtExceptionHandler
@@ -822,8 +745,8 @@
     (let [tree (app :docs-tree)]
       (project/load-expanded-paths tree)
       (when (false? (project/load-tree-selection tree))
-        (repl/start-repl app nil)))
-    (apply-settings app @(:settings app))))
+        (repl/start-repl app nil))))
+  (gui/setup-config-watch))
 
 (defn -show []
   (reset! embedded true)

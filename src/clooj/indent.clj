@@ -7,6 +7,7 @@
   (:require
    [clojure.string :as str]
    [clooj.brackets :as brackets]
+   [clooj.middleware :as mw]
    [clooj.state :as state]
    [clooj.text-area :as text-area]
    [clooj.utils :as utils])
@@ -77,19 +78,18 @@
   (let [indent-size (or (compute-indent-size text-comp offset) 0)]
     (apply str "\n" (repeat indent-size " "))))
 
-(defn setup-autoindent [text-comp comp-id]
+(defn wrap-autoindent [comp-id]
+  (fn [replace-fn]
+    (fn [offset len text attrs]
+      (replace-fn offset len
+                  (condp = text
+                    "\n" (auto-indent-str (get @state/component-registry comp-id) offset)
+                    text)
+                  attrs))))
+
+(defn setup-autoindent [comp-id]
   #_(utils/attach-action-keys text-comp
                               ["cmd1 BACK_SLASH" #(fix-indent-selected-lines text-comp)] ; "cmd1 \"
                               ["cmd1 CLOSE_BRACKET" #(utils/indent text-comp)]   ; "cmd1 ]"
                               ["cmd1 OPEN_BRACKET" #(utils/unindent text-comp)]) ; "cmd1 ["
-  (swap! state/components
-         update-in
-         [comp-id :middleware :replace]
-         (fnil conj [])
-         (fn [replace]
-           (fn [offset len text attrs]
-             (replace offset len
-                      (condp = text
-                        "\n" (auto-indent-str text-comp offset)
-                        text)
-                      attrs)))))
+  (mw/enable-middleware comp-id :replace (wrap-autoindent comp-id)))
