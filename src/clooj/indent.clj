@@ -42,10 +42,10 @@
 
 (defn compute-indent-size [text-comp offset]
   (let [bracket-pos (first (brackets/find-enclosing-brackets
-                            (utils/get-text-str text-comp) offset))]
+                            (text-area/get-text-str text-comp) offset))]
     (when (<= 0 bracket-pos)
       (let [bracket (.. (text-area/text text-comp) (charAt bracket-pos))
-            col (:col (utils/get-coords text-comp bracket-pos))]
+            col (:col (text-area/get-coords text-comp bracket-pos))]
         (if (= bracket \;)
           (compute-indent-size text-comp bracket-pos)
           (+ col
@@ -70,8 +70,8 @@
 
 (defn fix-indent-selected-lines [text-comp]
   (utils/awt-event
-   (dorun (map #(fix-indent text-comp %)
-               (utils/get-selected-lines text-comp)))))
+    (dorun (map #(fix-indent text-comp %)
+                (text-area/get-selected-lines text-comp)))))
 
 (defn auto-indent-str [text-comp offset]
   (let [indent-size (or (compute-indent-size text-comp offset) 0)]

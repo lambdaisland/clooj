@@ -6,6 +6,7 @@
 (ns clooj.search
   (:require
    [clooj.highlighting :as highlighting]
+   [clooj.text-area :as text-area]
    [clooj.utils :as utils])
   (:import
    (java.awt Color)
@@ -52,8 +53,8 @@
   (let [^RSyntaxTextArea dta (:doc-text-area app)
         match-case (.isSelected ^JCheckBox (:search-match-case-checkbox app))
         use-regex (.isSelected ^JCheckBox (:search-regex-checkbox app))
-        posns (find-all-in-string (utils/get-text-str dta)
-                                  (utils/get-text-str sta)
+        posns (find-all-in-string (text-area/get-text-str dta)
+                                  (text-area/get-text-str sta)
                                   match-case
                                   use-regex)]
     (highlighting/remove-highlights dta @search-highlights)
@@ -73,7 +74,7 @@
                 (conj (highlight-found dta posns)
                       (highlighting/highlight dta pos-start
                                               pos-end (.getSelectionColor dta))))
-        (utils/scroll-to-pos dta pos-start))
+        (text-area/scroll-to-pos dta pos-start))
       (.setBackground sta  Color/PINK))))
 
 (defn start-find [app]

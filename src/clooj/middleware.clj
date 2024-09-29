@@ -37,8 +37,30 @@
       "["
       (insert offset "[]" attrs)
       "("
-      (insert offset string attrs))))
+      (insert offset string attrs)
+      nil)))
 
-(swap! clooj.state/components update-in [:doc-text-area :middleware :insert]
-       (fnil conj [])
-       #'match-on-insert)
+(defn debug-mw [msg f]
+  (fn [& args]
+    (apply println msg args)
+    (apply f args)))
+
+(defn enable-middleware [component type var]
+  (swap! clooj.state/components
+         update-in [component :middleware type]
+         (fn [mw]
+           (if (some #{var} mw)
+             mw
+             ((fnil conj []) mw var)))))
+
+(defn remove-middleware [component type var]
+  (swap! clooj.state/components
+         update-in [component :middleware type]
+         (partial filterv
+                  (complement #{var}))))
+
+
+#_
+(defonce add-match-mw
+  (add-middleware :doc-text-area :insert #'match-on-insert)
+  )

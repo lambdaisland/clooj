@@ -81,6 +81,6 @@
       (count text))))
 
 (defn find-line-group [text-comp]
-  (let [text (utils/get-text-str text-comp)
+  (let [text (text-area/get-text-str text-comp)
         pos (text-area/caret-position text-comp)]
     [(find-left-gap text pos) (find-right-gap text pos)]))

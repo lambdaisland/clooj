@@ -10,6 +10,7 @@
    [clojure.set]
    [clojure.string :as str]
    [clooj.brackets :as brackets]
+   [clooj.middleware :as mw]
    [clooj.help :as help]
    [clooj.highlighting :as highlighting]
    [clooj.indent :as indent]
@@ -167,19 +168,19 @@
         (let [length (.. text-area getDocument getLength)
               pos2 (Math/min (long pos) (long length))]
           (.setCaretPosition text-area pos2)
-          (utils/scroll-to-caret text-area))))))
+          (text-area/scroll-to-caret text-area))))))
 
 (defn update-caret-position [^RSyntaxTextArea text-comp]
   (swap! caret-position assoc text-comp (.getCaretPosition text-comp)))
 
 (defn display-caret-position [doc-text-area app]
-  (let [{:keys [row col]} (utils/get-caret-coords doc-text-area)]
+  (let [{:keys [row col]} (text-area/get-caret-coords doc-text-area)]
     (.setText ^JLabel (:pos-label app) (str " " (inc row) "|" (inc col)))))
 
 (defn handle-caret-move [app text-comp ns]
   (update-caret-position text-comp)
   (help/help-handle-caret-move app text-comp)
-  (let [text (utils/get-text-str text-comp)]
+  (let [text (text-area/get-text-str text-comp)]
     (send-off highlight-agent
               (fn [old-pos]
                 (try
@@ -190,7 +191,7 @@
                             good-enclosures (clojure.set/difference
                                              (set enclosing-brackets) (set bad-brackets))]
                         (utils/awt-event
-                          (highlighting/highlight-brackets text-comp good-enclosures bad-brackets)))))
+                         (highlighting/highlight-brackets text-comp good-enclosures bad-brackets)))))
                   (catch Throwable t (utils/awt-event (.printStackTrace t))))))
     (when ns
       (send-off arglist-agent
@@ -199,8 +200,6 @@
                     (let [pos (@caret-position text-comp)]
                       (when-not (= pos old-pos)
                         (let [arglist-text (help/arglist-from-caret-pos app ns text pos)]
-                          (tap> [(help/arglist-from-caret-pos app ns text pos)
-                                 app ns text pos])
                           (utils/awt-event (.setText ^JLabel (:arglist-label app) arglist-text)))))
                     (catch Throwable t
                       (utils/awt-event (.printStackTrace t)))))))))
@@ -210,12 +209,12 @@
 (defn activate-caret-highlighter [app]
   (when-let [text-comp (app :doc-text-area)]
     (let [f #(handle-caret-move app % (repl/get-file-ns app))]
-      (utils/add-caret-listener text-comp f)
-      (utils/add-text-change-listener text-comp f)))
+      (text-area/add-caret-listener text-comp f)
+      (text-area/add-text-change-listener text-comp f)))
   (when-let [text-comp (app :repl-in-text-area)]
     (let [f #(handle-caret-move app % (repl/get-file-ns app))]
-      (utils/add-caret-listener text-comp f)
-      (utils/add-text-change-listener text-comp f))))
+      (text-area/add-caret-listener text-comp f)
+      (text-area/add-text-change-listener text-comp f))))
 
 ;; double-click paren to select form
 
@@ -229,8 +228,8 @@
                            c (.. text-comp getDocument (getText pos 1) (charAt 0))
                            pos (cond (#{\( \[ \{ \"} c) (inc pos)
                                      (#{\) \] \} \"} c) pos)
-                           [a b] (brackets/find-enclosing-brackets (utils/get-text-str text-comp) pos)]
-           (utils/set-selection text-comp a (inc b))))))))
+                           [a b] (brackets/find-enclosing-brackets (text-area/get-text-str text-comp) pos)]
+           (text-area/set-selection text-comp a (inc b))))))))
 
 ;; temp files
 
@@ -247,7 +246,7 @@
 
 (defn update-temp [app]
   (let [text-comp (app :doc-text-area)
-        txt (utils/get-text-str text-comp)
+        txt (text-area/get-text-str text-comp)
         f @(app :file)]
     (send-off temp-file-manager
               (fn [old-pos]
@@ -256,14 +255,14 @@
                     (when-not (= old-pos pos)
                       (dump-temp-doc app f txt))
                     pos)
-                     (catch Throwable t (utils/awt-event (.printStackTrace t))))))))
+                  (catch Throwable t (utils/awt-event (.printStackTrace t))))))))
 
 (defn setup-temp-writer [app]
   (let [text-comp (:doc-text-area app)]
-    (utils/add-text-change-listener text-comp
-      #(when-not @changing-file
-         (update-caret-position %)
-         (update-temp app)))))
+    (text-area/add-text-change-listener text-comp
+                                        #(when-not @changing-file
+                                           (update-caret-position %)
+                                           (update-temp app)))))
 
 (declare restart-doc)
 
@@ -317,7 +316,7 @@
   (let [sta (doto ^JTextField (:search-text-area app)
               (.setVisible false)
               (.setBorder (BorderFactory/createLineBorder Color/DARK_GRAY)))]
-    (utils/add-text-change-listener sta #(search/update-find-highlight % app false))
+    (text-area/add-text-change-listener sta #(search/update-find-highlight % app false))
     (utils/attach-action-keys
      sta
      ["ENTER" #(search/highlight-step app false)]
@@ -364,7 +363,7 @@
         line-num  (if (or (nil? line-str) (nil? (re-find #"\d+" line-str)))
                     (current-line)
                     (Long/parseLong (re-find #"\d+" line-str)))]
-    (utils/scroll-to-line textarea line-num)
+    (text-area/scroll-to-line textarea line-num)
     (.requestFocus textarea)))
 
 (defn open-project [app]
@@ -404,11 +403,11 @@
   (let [rsta (make-text-area false)]
     (navigate/attach-navigation-keys rsta)
     (double-click-selector rsta)
-    (utils/add-caret-listener rsta #(display-caret-position % app))
+    (text-area/add-caret-listener rsta #(display-caret-position % app))
     (help/setup-tab-help rsta app)
     (indent/setup-autoindent rsta comp-id)
     (.setDocumentFilter (text-area/doc rsta)
-                        (mw-doc-filter comp-id))
+                        (mw/doc-filter comp-id))
     rsta))
 
 (defn create-app []
@@ -557,7 +556,7 @@
 
 (defn restart-doc [app ^File file]
   (let [f @(:file app)
-        txt (utils/get-text-str (:doc-text-area app))]
+        txt (text-area/get-text-str (:doc-text-area app))]
     (send-off temp-file-manager
               (let [temp-file (project/get-temp-file f)]
                 (fn [_]
@@ -731,7 +730,7 @@
       (when (not= file @(:file app))
         (restart-doc app file)
         (project/set-tree-selection (:docs-tree app) (.getAbsolutePath ^File file)))
-      (utils/scroll-to-line text-comp line))))
+      (text-area/scroll-to-line text-comp line))))
 
 (defn make-menus [app]
   (when (utils/is-mac)
@@ -754,10 +753,10 @@
                     ["Move/Rename" "M" nil #(project/rename-project app)]
                     ["Remove" nil nil #(remove-project app)])
     (utils/add-menu menu-bar "Source" "U"
-                    ["Comment" "C" "cmd1 SEMICOLON" #(utils/toggle-comment (:doc-text-area app))]
+                    ["Comment" "C" "cmd1 SEMICOLON" #(text-area/toggle-comment (:doc-text-area app))]
                     ["Fix indentation" "F" "cmd1 BACK_SLASH" #(indent/fix-indent-selected-lines (:doc-text-area app))]
-                    ["Indent lines" "I" "cmd1 CLOSE_BRACKET" #(utils/indent (:doc-text-area app))]
-                    ["Unindent lines" "D" "cmd1 OPEN_BRACKET" #(utils/unindent (:doc-text-area app))]
+                    ["Indent lines" "I" "cmd1 CLOSE_BRACKET" #(text-area/indent (:doc-text-area app))]
+                    ["Unindent lines" "D" "cmd1 OPEN_BRACKET" #(text-area/unindent (:doc-text-area app))]
                     ["Name search/docs" "S" "TAB" #(help/show-tab-help app (help/find-focused-text-pane app) inc)]
                     ["Go to line..." "G" "cmd1 L" #(move-caret-to-line (:doc-text-area app))]
                     ;;["Go to definition" "G" "cmd1 D" #(goto-definition (repl/get-file-ns app) app)]
@@ -839,7 +838,7 @@
 ;; testing
 
 (defn get-text []
-  (utils/get-text-str (@current-app :doc-text-area)))
+  (text-area/get-text-str (:doc-text-area @current-app)))
 
 ;; not working yet:
 ;;(defn restart

@@ -10,6 +10,7 @@
    [clooj.project :as project]
    [clooj.repl.external :as external]
    [clooj.repl.internal :as internal]
+   [clooj.text-area :as text-area]
    [clooj.utils :as utils])
   (:import
    (clojure.lang LineNumberingPushbackReader)
@@ -61,7 +62,7 @@
 
 (defn update-repl-history [app]
   (swap! (:items repl-history) replace-first
-         (utils/get-text-str (app :repl-in-text-area))))
+         (text-area/get-text-str (app :repl-in-text-area))))
 
 (defn read-string-at [source-text start-line]
   `(let [sr# (java.io.StringReader. (str (apply str (repeat ~start-line "\n"))
@@ -89,9 +90,9 @@
   [app cmd-str silent?]
   (when-let [repl @(:repl app)]
     (.evaluate repl
-               (if silent?
-                 (str "(clooj.repl.remote/silent" cmd-str ")")
-                 cmd-str))))
+               (if false #_silent?
+                   (str "(clooj.repl.remote/silent" cmd-str ")")
+                   cmd-str))))
 
 (defn send-to-repl
   ([app cmd silent?]
@@ -99,7 +100,7 @@
   ([app cmd file line silent?]
    (let [cmd-ln (str cmd \newline)]
      (when-not silent?
-       (utils/append-text (:repl-out-text-area app) cmd-ln))
+       (text-area/append-text (:repl-out-text-area app) cmd-ln))
      (print-to-repl app cmd silent?)
      (when-not silent?
        (when (not= cmd (second @(:items repl-history)))
@@ -137,7 +138,7 @@
 
 (defn send-doc-to-repl [app]
   (let [text (->> app :doc-text-area .getText)]
-    (utils/append-text (app :repl-out-text-area) "Evaluating file...")
+    (text-area/append-text (app :repl-out-text-area) "Evaluating file...")
     (send-to-repl app text (relative-file app) 0 true)))
 
 (defn make-repl-writer [ta-out]
@@ -146,12 +147,12 @@
      (write
        ([char-array offset length]
         ;;(println "char array:" (apply str char-array) (count char-array))
-        (utils/append-text ta-out (apply str char-array)))
+        (text-area/append-text ta-out (apply str char-array)))
        ([t]
         ;;(println "t:" t)
         (if (= Integer (type t))
-          (utils/append-text ta-out (str (char t)))
-          (utils/append-text ta-out (apply str t)))))
+          (text-area/append-text ta-out (str (char t)))
+          (text-area/append-text ta-out (apply str t)))))
      (flush [])
      (close [] nil))
    (PrintWriter. true)))
@@ -183,8 +184,8 @@
 
 (defn start-repl [app project-path]
   (let [project-path (if (utils/file-exists? project-path) project-path nil)]
-    (utils/append-text (app :repl-out-text-area)
-                       (str "\n=== Starting new REPL at " project-path " ===\n"))
+    (text-area/append-text (app :repl-out-text-area)
+                           (str "\n=== Starting new REPL at " project-path " ===\n"))
     (let [classpath-items ;(lein/lein-classpath-items project-path)
           (external/repl-classpath-items project-path)
           repl (internal/start-repl (:repl-out-writer app))
@@ -195,16 +196,16 @@
       (reset! (:repl app) repl))))
 
 (defn stop-repl [app]
-  (utils/append-text (app :repl-out-text-area)
-                     "\n=== Shutting down REPL ===")
+  (text-area/append-text (app :repl-out-text-area)
+                         "\n=== Shutting down REPL ===")
   (when-let [repl @(:repl app)]
     (.close repl)))
 
 (defn apply-namespace-to-repl [app]
   (when-not @(:repl app)
     (start-repl app (first (project/get-selected-projects app))))
-  (when-let [current-ns (get-file-ns app)]
-    (send-to-repl app (str "(ns " current-ns ")") true)))
+  #_(when-let [current-ns (get-file-ns app)]
+      (send-to-repl app (str "(in-ns '" current-ns ")") true)))
 
 (defn restart-repl [app project-path]
   (stop-repl app)

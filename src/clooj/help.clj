@@ -297,8 +297,8 @@
            files))
 
 (defn- load-dependencies [app artifact]
-  (utils/awt-event (utils/append-text (app :repl-out-text-area)
-                                      (str "\nLoading " artifact " ... ")))
+  (utils/awt-event (text-area/append-text (app :repl-out-text-area)
+                                          (str "\nLoading " artifact " ... ")))
   ;; FIXME: use lambdaisland.classpath
   ;; (let [deps (cemerick.pomegranate.aether/resolve-dependencies
   ;;              :coordinates [artifact]
@@ -306,13 +306,13 @@
   ;;                (merge aether/maven-central
   ;;                       {"clojars" "http://clojars.org/repo"}))]
   ;;   (add-classpath-to-repl app (aether/dependency-files deps)))
-  (utils/append-text (app :repl-out-text-area)
-                     (str "done.")))
+  (text-area/append-text (app :repl-out-text-area)
+                         (str "done.")))
 
 (defn- update-token [app text-comp new-token]
   (utils/awt-event
     (let [[start stop] (local-token-location
-                        (utils/get-text-str text-comp)
+                        (text-area/get-text-str text-comp)
                         (text-area/caret-position text-comp))
           len (- stop start)]
       (when (and (seq new-token) (pos? (.getSize (.getModel ^JList (:completion-list app)))))
@@ -347,7 +347,7 @@
 (defn show-tab-help [app text-comp index-change-fn]
   (def show-tab-help* [app text-comp index-change-fn])
   (utils/awt-event
-    (let [text (utils/get-text-str text-comp)
+    (let [text (text-area/get-text-str text-comp)
           pos (text-area/caret-position text-comp)
           [start stop] (local-token-location text pos)]
       (when-let [token (subs text start stop)]
@@ -359,7 +359,7 @@
   (def help-handle-caret-move* [app text-comp])
   (utils/awt-event
     (when (@help-state :visible)
-      (let [[start _] (local-token-location (utils/get-text-str text-comp)
+      (let [[start _] (local-token-location (text-area/get-text-str text-comp)
                                             (text-area/caret-position text-comp))]
         (if-not (= start (@help-state :pos))
           (hide-tab-help app)
