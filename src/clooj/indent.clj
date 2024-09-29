@@ -7,10 +7,10 @@
   (:require
    [clojure.string :as str]
    [clooj.brackets :as brackets]
+   [clooj.state :as state]
    [clooj.text-area :as text-area]
    [clooj.utils :as utils])
   (:import
-   (javax.swing.text DocumentFilter DocumentFilter$FilterBypass)
    (org.fife.ui.rsyntaxtextarea RSyntaxTextArea)))
 
 (set! *warn-on-reflection* true)
@@ -77,22 +77,19 @@
   (let [indent-size (or (compute-indent-size text-comp offset) 0)]
     (apply str "\n" (repeat indent-size " "))))
 
-(defn setup-autoindent [text-comp]
-  (utils/attach-action-keys text-comp
-                            ["cmd1 BACK_SLASH" #(fix-indent-selected-lines text-comp)] ; "cmd1 \"
-                            ["cmd1 CLOSE_BRACKET" #(utils/indent text-comp)]   ; "cmd1 ]"
-                            ["cmd1 OPEN_BRACKET" #(utils/unindent text-comp)]) ; "cmd1 ["
-  (.. (text-area/doc text-comp)
-      (setDocumentFilter
-       (proxy [DocumentFilter] []
-         (replace [^DocumentFilter$FilterBypass fb offset len text attrs]
-           (.replace
-            fb offset len
-            (condp = text
-              "\n" (auto-indent-str text-comp offset)
-              text)
-            attrs))
-         (remove [^DocumentFilter$FilterBypass fb offset len]
-           (.remove fb offset len))
-         (insertString [^DocumentFilter$FilterBypass fb offset string attr]
-           (.insertString fb offset string attr))))))
+(defn setup-autoindent [text-comp comp-id]
+  #_(utils/attach-action-keys text-comp
+                              ["cmd1 BACK_SLASH" #(fix-indent-selected-lines text-comp)] ; "cmd1 \"
+                              ["cmd1 CLOSE_BRACKET" #(utils/indent text-comp)]   ; "cmd1 ]"
+                              ["cmd1 OPEN_BRACKET" #(utils/unindent text-comp)]) ; "cmd1 ["
+  (swap! state/components
+         update-in
+         [comp-id :middleware :replace]
+         (fnil conj [])
+         (fn [replace]
+           (fn [offset len text attrs]
+             (replace offset len
+                      (condp = text
+                        "\n" (auto-indent-str text-comp offset)
+                        text)
+                      attrs)))))

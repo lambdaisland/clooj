@@ -19,6 +19,8 @@
    [clooj.repl.output :as repl-output]
    [clooj.search :as search]
    [clooj.settings :as settings]
+   [clooj.state :as state]
+   [clooj.text-area :as text-area]
    [clooj.utils :as utils])
   (:import
    (java.awt AWTEvent Color Font Toolkit Window)
@@ -27,6 +29,7 @@
    (java.util.concurrent LinkedBlockingQueue)
    (javax.swing BorderFactory JButton JCheckBox JComponent JFrame JLabel JList JMenuBar JOptionPane JPanel JScrollPane JTextArea JTextField JTree KeyStroke SpringLayout UIManager)
    (javax.swing.event TreeExpansionListener TreeSelectionListener)
+   (javax.swing.text DocumentFilter DocumentFilter$FilterBypass)
    (javax.swing.tree DefaultMutableTreeNode DefaultTreeModel TreeSelectionModel)
    (org.fife.ui.rsyntaxtextarea AbstractTokenMaker RSyntaxDocument RSyntaxTextArea SyntaxConstants TokenMakerFactory)
    (org.fife.ui.rtextarea RTextScrollPane)))
@@ -397,13 +400,16 @@
      (windowActivated [_]
        (fun)))))
 
-(defn new-doc-text-area [app]
-  (doto (make-text-area false)
-    navigate/attach-navigation-keys
-    double-click-selector
-    (utils/add-caret-listener #(display-caret-position % app))
-    (help/setup-tab-help app)
-    indent/setup-autoindent))
+(defn new-doc-text-area [app comp-id]
+  (let [rsta (make-text-area false)]
+    (navigate/attach-navigation-keys rsta)
+    (double-click-selector rsta)
+    (utils/add-caret-listener rsta #(display-caret-position % app))
+    (help/setup-tab-help rsta app)
+    (indent/setup-autoindent rsta comp-id)
+    (.setDocumentFilter (text-area/doc rsta)
+                        (mw-doc-filter comp-id))
+    rsta))
 
 (defn create-app []
   (let [doc-text-panel (JPanel.)
@@ -447,33 +453,32 @@
                     :classpath-queue (LinkedBlockingQueue.)
                     :changed false}
                    (utils/gen-map
-                    doc-label
-                    repl-out-text-area
-                    repl-in-text-area
-                    repl-label
-                    frame
-                    help-text-area
-                    help-text-scroll-pane
-                    repl-out-scroll-pane
-                    docs-tree
-                    docs-tree-scroll-pane
-                    docs-tree-panel
-                    docs-tree-label
-                    search-text-area
-                    search-match-case-checkbox
-                    search-regex-checkbox
-                    search-close-button
-                    pos-label
-                    repl-out-writer
-                    doc-split-pane
-                    repl-split-pane
-                    split-pane
-                    arglist-label
-                    completion-list
-                    completion-scroll-pane
-                    completion-panel
-                    ))
-        doc-text-area (new-doc-text-area app)
+                     doc-label
+                     repl-out-text-area
+                     repl-in-text-area
+                     repl-label
+                     frame
+                     help-text-area
+                     help-text-scroll-pane
+                     repl-out-scroll-pane
+                     docs-tree
+                     docs-tree-scroll-pane
+                     docs-tree-panel
+                     docs-tree-label
+                     search-text-area
+                     search-match-case-checkbox
+                     search-regex-checkbox
+                     search-close-button
+                     pos-label
+                     repl-out-writer
+                     doc-split-pane
+                     repl-split-pane
+                     split-pane
+                     arglist-label
+                     completion-list
+                     completion-scroll-pane
+                     completion-panel))
+        doc-text-area (new-doc-text-area app :doc-text-area)
         doc-scroll-pane (make-scroll-pane doc-text-area)
         app (assoc app :doc-text-area doc-text-area)
         app (assoc app :settings (load-settings))]
@@ -542,7 +547,7 @@
     (.setEditable repl-out-text-area false)
     (.setEditable help-text-area false)
     (.setBackground help-text-area (Color. 0xFF 0xFF 0xE8))
-    (indent/setup-autoindent repl-in-text-area)
+    (indent/setup-autoindent repl-in-text-area :repl-in-text-area)
 
     (dorun (map #(attach-global-action-keys % app)
                 [docs-tree doc-text-area repl-in-text-area repl-out-text-area (.getContentPane frame)]))
@@ -589,7 +594,6 @@
           (.setText doc-label (str "Source Editor (No file selected)"))
           (.setEditable text-area false)))
 
-    (indent/setup-autoindent text-area)
     (reset! (app :file) file)
     (load-caret-position app)
     (update-caret-position text-area)

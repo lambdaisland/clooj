@@ -7,7 +7,8 @@
   com.formdev/flatlaf          {:mvn/version "3.5.1"}
   com.lambdaisland/cli         {:mvn/version "0.18.74"}
   lambdaisland/data-printers   {:mvn/version "0.7.47"}
-  org.clojure/data.zip         {:mvn/version "1.1.0"}}
+  org.clojure/data.zip         {:mvn/version "1.1.0"}
+  org.clojure/tools.reader     {:mvn/version "1.5.0"}}
 
  :aliases
  {:dev {:extra-paths ["dev"]}}}
