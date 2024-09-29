@@ -1,4 +1,11 @@
-(ns clooj.tools-reader
+(ns clooj.analysis.tools-reader
+  "Butchered version of clojure.tools.reader
+  - Attaches pos/end metadata to everything
+  - Wraps types that don't support metadata
+  - Includes nodes for comments, discards
+  - dumbs down a lot of the advanced stuff, like syntax quote, function
+  shorthand, so the result is closer to the text
+  - Metadata in source is not attached to the parsed value, but returned as a two-children MetadataNode"
   (:refer-clojure
    :exclude
    [read
@@ -42,9 +49,15 @@
    (java.util LinkedList List)
    (java.util.regex Pattern)))
 
+(defrecord MetaNode [o m])
+(defrecord DiscardNode [o])
+(defrecord CommentNode [o])
+(defrecord LiteralNode [o])
+
 (defprotocol PosReader
   (rdr-pos [this] "Current position in the buffer"))
 
+;; Version of PushbackReader that also keeps track of the position in the buffer.
 (deftype PosPushbackReader
     [rdr ^"[Ljava.lang.Object;" buf
      ^long buf-len
@@ -140,24 +153,31 @@
 ;; readers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defmacro read-with-pos [rdr & body]
+  `(let [pos# (rdr-pos ~rdr)
+         val# (do ~@body)]
+     (with-meta val#
+       {:pos (dec pos#)
+        :end (dec (rdr-pos ~rdr))})))
+
 (defn read-regex
   [rdr ch opts pending-forms]
   (read-with-pos rdr
-    (->LiteralNode
-     (let [sb (StringBuilder.)]
-       (loop [ch (read-char rdr)]
-         (if (identical? \" ch)
-           (Pattern/compile (str sb))
-           (if (nil? ch)
-             (err/throw-eof-reading rdr :regex sb)
-             (do
-               (.append sb ch )
-               (when (identical? \\ ch)
-                 (let [ch (read-char rdr)]
-                   (if (nil? ch)
-                     (err/throw-eof-reading rdr :regex sb))
-                   (.append sb ch)))
-               (recur (read-char rdr))))))))))
+                 (->LiteralNode
+                  (let [sb (StringBuilder.)]
+                    (loop [ch (read-char rdr)]
+                      (if (identical? \" ch)
+                        (Pattern/compile (str sb))
+                        (if (nil? ch)
+                          (err/throw-eof-reading rdr :regex sb)
+                          (do
+                            (.append sb ch )
+                            (when (identical? \\ ch)
+                              (let [ch (read-char rdr)]
+                                (if (nil? ch)
+                                  (err/throw-eof-reading rdr :regex sb))
+                                (.append sb ch)))
+                            (recur (read-char rdr))))))))))
 
 (defn- read-unicode-char
   ([^String token ^long offset ^long length ^long base]
@@ -265,21 +285,14 @@
               (err/throw-eof-delimited rdr kind start-line start-column (count a))
               (recur (conj! a form)))))))))
 
-(defmacro read-with-pos [rdr & body]
-  `(let [pos# (rdr-pos ~rdr)
-         val# (do ~@body)]
-     (with-meta val#
-       {:pos (dec pos#)
-        :end (dec (rdr-pos ~rdr))})))
-
 (defn- read-list
   "Read in a list, including its location if the reader is an indexing reader"
   [rdr _ opts pending-forms]
   (read-with-pos rdr
-    (let [the-list (read-delimited :list \) rdr opts pending-forms)]
-      (if (empty? the-list)
-        '()
-        (clojure.lang.PersistentList/create the-list)))))
+                 (let [the-list (read-delimited :list \) rdr opts pending-forms)]
+                   (if (empty? the-list)
+                     '()
+                     (clojure.lang.PersistentList/create the-list)))))
 
 (defn- read-vector
   "Read in a vector, including its location if the reader is an indexing reader"
@@ -331,12 +344,6 @@
             ch))
         (err/throw-bad-escape-char rdr ch)))))
 
-(defrecord KeywordNode [o])
-(defrecord MetaNode [o m])
-(defrecord DiscardNode [o])
-(defrecord CommentNode [o])
-(defrecord LiteralNode [o])
-
 (defn- read-string*
   [reader _ opts pending-forms]
   (read-with-pos reader
@@ -376,11 +383,24 @@
 (defn- read-keyword
   [reader initch opts pending-forms]
   (read-with-pos reader
-    (let [ch (read-char reader)]
-      (if-not (whitespace? ch)
-        (let [token (read-token reader :keyword ch)]
-          (->KeywordNode token))
-        (err/throw-single-colon reader)))))
+    (->LiteralNode
+     (let [ch (read-char reader)]
+       (if-not (whitespace? ch)
+         (let [token (read-token reader :keyword ch)
+               s (parse-symbol token)]
+           (if s
+             (let [^String ns (s 0)
+                   ^String name (s 1)]
+               (if (identical? \: (nth token 0))
+                 (if ns
+                   (let [ns (resolve-alias (symbol (subs ns 1)))]
+                     (if ns
+                       (keyword (str ns) name)
+                       (err/throw-invalid reader :keyword (str \: token))))
+                   (keyword (str *ns*) (subs name 1)))
+                 (keyword ns name)))
+             (err/throw-invalid reader :keyword (str \: token))))
+         (err/throw-single-colon reader))))))
 
 (defn- wrapping-reader
   "Returns a function which wraps a reader in a call to sym"
