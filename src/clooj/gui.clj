@@ -1,6 +1,7 @@
 (ns clooj.gui
   (:refer-clojure :exclude [resolve])
   (:require
+   [clooj.keymaps :as keymaps]
    [clooj.state :as state]
    [clooj.utils :as utils])
   (:import
@@ -13,6 +14,8 @@
 (defn register [comp-id comp]
   (swap! state/component-registry assoc comp-id comp)
   (apply-config comp-id)
+  (when (instance? JComponent comp)
+    (keymaps/setup-keymaps comp comp-id))
   comp)
 
 (defn resolve [comp-id]

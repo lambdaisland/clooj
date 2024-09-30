@@ -20,3 +20,5 @@
 (do
   (Thread/sleep 1000)
   (.getFocusOwner (KeyboardFocusManager/getCurrentKeyboardFocusManager)))
+
+(world)

@@ -14,6 +14,7 @@
    [clooj.help :as help]
    [clooj.highlighting :as highlighting]
    [clooj.indent :as indent]
+   [clooj.keymaps :as keymaps]
    [clooj.middleware :as mw]
    [clooj.navigate :as navigate]
    [clooj.project :as project]
@@ -21,6 +22,7 @@
    [clooj.repl.output :as repl-output]
    [clooj.search :as search]
    [clooj.settings :as settings]
+   [clooj.state :as state]
    [clooj.text-area :as text-area]
    [clooj.utils :as utils])
   (:import
@@ -28,7 +30,7 @@
    (java.awt.event ActionListener AWTEventListener MouseAdapter MouseEvent WindowAdapter)
    (java.io BufferedWriter File FileOutputStream OutputStreamWriter StringReader)
    (java.util.concurrent LinkedBlockingQueue)
-   (javax.swing BorderFactory JButton JCheckBox JComponent JFrame JLabel JList JMenuBar JOptionPane JPanel JScrollPane JTextArea JTextField JTree KeyStroke SpringLayout UIManager)
+   (javax.swing BorderFactory JButton JCheckBox JFrame JLabel JList JMenuBar JOptionPane JPanel JScrollPane JTextArea JTextField JTree KeyStroke SpringLayout UIManager)
    (javax.swing.event TreeExpansionListener TreeSelectionListener)
    (javax.swing.tree DefaultMutableTreeNode DefaultTreeModel TreeSelectionModel)
    (org.fife.ui.rsyntaxtextarea RSyntaxTextArea SyntaxConstants)
@@ -97,9 +99,9 @@
   (let [{:keys [row col]} (text-area/get-caret-coords doc-text-area)]
     (.setText ^JLabel (:pos-label app) (str " " (inc row) "|" (inc col)))))
 
-(defn handle-caret-move [app text-comp ns]
+(defn handle-caret-move [comp-id text-comp ns]
   (update-caret-position text-comp)
-  (help/help-handle-caret-move app text-comp)
+  (help/help-handle-caret-move @current-app text-comp)
   (let [text (text-area/get-text-str text-comp)]
     (send-off highlight-agent
               (fn [old-pos]
@@ -111,7 +113,7 @@
                             good-enclosures (clojure.set/difference
                                              (set enclosing-brackets) (set bad-brackets))]
                         (utils/awt-event
-                         (highlighting/highlight-brackets text-comp good-enclosures bad-brackets)))))
+                          (highlighting/highlight-brackets text-comp good-enclosures bad-brackets)))))
                   (catch Throwable t (utils/awt-event (.printStackTrace t))))))
     (when ns
       (send-off arglist-agent
@@ -119,8 +121,8 @@
                   (try
                     (let [pos (@caret-position text-comp)]
                       (when-not (= pos old-pos)
-                        (let [arglist-text (help/arglist-from-caret-pos app ns text pos)]
-                          (utils/awt-event (.setText ^JLabel (:arglist-label app) arglist-text)))))
+                        (let [arglist-text (help/arglist-from-caret-pos comp-id ns text pos)]
+                          (utils/awt-event (.setText ^JLabel (gui/resolve :arglist-label) arglist-text)))))
                     (catch Throwable t
                       (utils/awt-event (.printStackTrace t)))))))))
 
@@ -128,11 +130,11 @@
 
 (defn activate-caret-highlighter [app]
   (when-let [text-comp (app :doc-text-area)]
-    (let [f #(handle-caret-move app % (repl/get-file-ns app))]
+    (let [f #(handle-caret-move :doc-text-area % (repl/get-file-ns app))]
       (text-area/add-caret-listener text-comp f)
       (text-area/add-text-change-listener text-comp f)))
   (when-let [text-comp (app :repl-in-text-area)]
-    (let [f #(handle-caret-move app % (repl/get-file-ns app))]
+    (let [f #(handle-caret-move :repl-in-text-area % (repl/get-file-ns app))]
       (text-area/add-caret-listener text-comp f)
       (text-area/add-text-change-listener text-comp f))))
 
@@ -186,8 +188,8 @@
 
 (defn file-suffix [^File f]
   (utils/when-lets [name (.getName f)
-             last-dot (.lastIndexOf name ".")
-             suffix (subs name (inc last-dot))]
+                    last-dot (.lastIndexOf name ".")
+                    suffix (subs name (inc last-dot))]
     suffix))
 
 (defn text-file? [f]
@@ -242,8 +244,10 @@
      ["ESCAPE" #(search/escape-find app)])))
 
 (defn create-arglist-label ^JLabel []
-  (doto (JLabel.)
-    (.setVisible true)))
+  (gui/register
+   :arglist-label
+   (doto (JLabel.)
+     (.setVisible true))))
 
 (defn exit-if-closed [^java.awt.Window f app]
   (when-not @embedded
@@ -465,8 +469,8 @@
     (setup-search-elements app)
     (activate-caret-highlighter app)
     (setup-temp-writer app)
-    (utils/attach-action-keys doc-text-area
-                              ["cmd1 ENTER" #(repl/send-selected-to-repl app)])
+    #_(utils/attach-action-keys doc-text-area
+                                ["cmd1 ENTER" #(repl/send-selected-to-repl app)])
     (.setEditable repl-out-text-area false)
     (.setEditable help-text-area false)
     (.setBackground help-text-area (Color. 0xFF 0xFF 0xE8))
@@ -701,8 +705,8 @@
                     ["Go to REPL input" "R" "cmd1 3" #(.requestFocusInWindow ^RSyntaxTextArea (:repl-in-text-area app))]
                     ["Go to Editor" "E" "cmd1 2" #(.requestFocusInWindow ^RSyntaxTextArea (:doc-text-area app))]
                     ["Go to Project Tree" "P" "cmd1 1" #(.requestFocusInWindow ^JTree (:docs-tree app))]
-                    ["Increase font size" nil "cmd1 PLUS" #(grow-font app)]
-                    ["Decrease font size" nil "cmd1 MINUS" #(shrink-font app)]
+                    #_["Increase font size" nil "cmd1 PLUS" #(grow-font app)]
+                    #_["Decrease font size" nil "cmd1 MINUS" #(shrink-font app)]
                     ["Settings" nil nil #(settings/show-settings-window
                                           app identity #_apply-settings)])))
 
@@ -746,6 +750,7 @@
       (project/load-expanded-paths tree)
       (when (false? (project/load-tree-selection tree))
         (repl/start-repl app nil))))
+  (swap! state/key-maps merge keymaps/default-keymaps)
   (gui/setup-config-watch))
 
 (defn -show []
@@ -769,3 +774,7 @@
 ;;   []
 ;;  (.setVisible (@current-app :frame) false)
 ;;  (startup))
+
+(comment
+  (startup)
+  )

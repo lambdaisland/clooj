@@ -334,15 +334,15 @@
     (when-not (str/blank? t)
       t)))
 
-(defn arglist-from-caret-pos [app ns text pos]
-  (when-let [token (token-from-caret-pos text pos)]
-    (let [token (symbol token)]
-      (if-let [s (get special-forms token)]
-        s
-        (let [repl @(:repl app)
-              ns-info (proto/ns-info repl (symbol ns))
-              {:keys [ns name arglists] :as var-info} (resolve-var-info repl ns-info token)]
-          (str/join " " (map #(cons (symbol (str ns) (str name)) %) arglists)))))))
+(defn arglist-from-caret-pos [comp-id ns text pos]
+  #_  (when-let [token (token-from-caret-pos text pos)]
+        (let [token (symbol token)]
+          (if-let [s (get special-forms token)]
+            s
+            (let [repl @(:repl app)
+                  ns-info (proto/ns-info repl (symbol ns))
+                  {:keys [ns name arglists] :as var-info} (resolve-var-info repl ns-info token)]
+              (str/join " " (map #(cons (symbol (str ns) (str name)) %) arglists)))))))
 
 (defn show-tab-help [app text-comp index-change-fn]
   (def show-tab-help* [app text-comp index-change-fn])

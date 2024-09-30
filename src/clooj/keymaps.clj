@@ -1,8 +1,11 @@
 (ns clooj.keymaps
   (:require
+   [clooj.state :as state]
+   [clooj.utils :as util]
    [lambdaisland.data-printers :as data-printers])
   (:import
-   (javax.swing AbstractAction Action InputMap JComponent KeyStroke)))
+   (java.awt.event ActionEvent)
+   (javax.swing AbstractAction Action ActionMap ComponentInputMap InputMap JComponent KeyStroke)))
 
 ;; Swing key handling, as described in KeyboardManager.java. In order these things get a crack and "consuming" a KeyEvent
 ;; - FocusManager (e.g. TAB to change focus)
@@ -20,7 +23,11 @@
 ;; keyboard input into the text area
 
 (defn keystroke [^String s]
-  (KeyStroke/getKeyStroke s))
+  (let [mac? (util/is-mac)]
+    (KeyStroke/getKeyStroke
+     (-> s
+         (.replace "cmd1" (if mac? "meta" "ctrl"))
+         (.replace "cmd2" (if mac? "ctrl" "alt"))))))
 
 (data-printers/register-print KeyStroke 'javax.swing/KeyStroke #(.toString ^Object %))
 
@@ -42,63 +49,70 @@
 (defn set-global-map ^InputMap [^JComponent comp ^ComponentInputMap m]
   (.setInputMap comp JComponent/WHEN_IN_FOCUSED_WINDOW m))
 
-(defn input-map
-  ([m]
-   (input-map m nil))
-  ([m ^InputMap parent]
-   (let [m (update-keys m #(if (string? %) (keystroke %) %))]
-     (proxy [InputMap java.util.Map clojure.lang.IMeta] []
-       (allKeys []
-         (into-array KeyStroke
-                     (concat (keys m)
-                             (when parent
-                               (.allKeys parent)))))
-       (clear []
-         (throw (UnsupportedOperationException. "Can't clear immutable InputMap")))
-       (get [keystroke]
-         (println keystroke)
-         (or (get m keystroke)
-             (when parent
-               (.get parent keystroke))))
-       (keys []
-         (into-array KeyStroke (keys m)))
-       (put [_ _]
-         (throw (UnsupportedOperationException. "Can't insert into immutable InputMap")))
-       (remove [_]
-         (throw (UnsupportedOperationException. "Can't remove from immutable InputMap")))
-       (setParent [_]
-         (throw (UnsupportedOperationException. "Can't change parent of immutable InputMap")))
-       (size []
-         (count m))
+(defn set-action-map ^ActionMap [^JComponent comp ^ActionMap m]
+  (.setActionMap comp m))
 
-       ;; java.util.Map
-       (entrySet []
-         (.entrySet m))
+(defn action-map ^ActionMap [^JComponent comp]
+  (.getActionMap comp))
 
-       ;; clojure.lang.IMeta
-       (meta []
-         {:entries m
-          :parent parent})))))
+(defn keymap
+  "Coerce to keymap, i.e. values are Keystroke instances. Values should be action
+  keys (we use keywords but can be arbitrary objects.)"
+  [m]
+  (update-keys m #(if (string? %) (keystroke %) %)))
 
-(defn action-map
-  ([m]
-   (action-map m nil))
-  ([m ^ActionMap parent]
-   (proxy [ActionMap clojure.lang.IMeta] []
+(defn fun-input-map
+  "Input map backed by a plain function
+  - 0 args - list keys
+  - 1 arg - do lookup"
+  ([f]
+   (fun-input-map f nil))
+  ([f ^InputMap parent]
+   (proxy [InputMap] []
+     (allKeys []
+       (into-array KeyStroke
+                   (concat (f)
+                           (when parent
+                             (.allKeys parent)))))
+     (clear []
+       (throw (UnsupportedOperationException. "Can't clear immutable InputMap")))
+     (get [keystroke]
+       (or (f keystroke)
+           (when parent
+             (.get parent keystroke))))
+     (keys []
+       (into-array KeyStroke (f)))
+     (put [_ _]
+       (throw (UnsupportedOperationException. "Can't insert into immutable InputMap")))
+     (remove [_]
+       (throw (UnsupportedOperationException. "Can't remove from immutable InputMap")))
+     (setParent [_]
+       (throw (UnsupportedOperationException. "Can't change parent of immutable InputMap")))
+     (size []
+       (count (f))))))
+
+(defn fun-action-map
+  ([f]
+   (fun-action-map f nil))
+  ([f ^ActionMap parent]
+   (proxy [ActionMap] []
      (allKeys []
        (into-array
         Object
-        (concat (keys m)
+        (concat (f)
                 (when parent
                   (.allKeys parent)))))
      (clear []
        (throw (UnsupportedOperationException. "Can't clear immutable ActionMap")))
      (get ^Action [o]
-       (or (get m o)
-           (when parent
-             (.get parent o))))
+       (if-let [action-fn (f o)]
+         (proxy [AbstractAction] []
+           (actionPerformed [event]
+             (action-fn event)))
+         (when parent
+           (.get parent o))))
      (keys []
-       (into-array Object (keys m)))
+       (into-array Object (f)))
      (put [_ _]
        (throw (UnsupportedOperationException. "Can't insert into immutable ActionMap")))
      (remove [_]
@@ -106,12 +120,41 @@
      (setParent [_]
        (throw (UnsupportedOperationException. "Can't change parent of immutable ActionMap")))
      (size []
-       (count m))
+       (count (f))))))
 
-     ;; clojure.lang.IMeta
-     (meta []
-       {:entries m
-        :parent parent}))))
+(defn setup-keymaps [^JComponent comp comp-id]
+  (set-focus-map
+   comp
+   (fun-input-map
+    (fn [keystroke]
+      (let [cc @state/component-config]
+        (first
+         (for [km-key (get-in cc [comp-id :key-maps :focus])
+               :let [action-key (get-in @state/key-maps [km-key keystroke])]
+               :when action-key]
+           action-key))))
+    (focus-map comp)))
+
+  (set-action-map
+   comp
+   (fun-action-map
+    (fn [o]
+      (let [cc @state/component-config]
+        (first
+         (for [am-key (get-in cc [comp-id :action-maps])
+               :let [action (get-in @state/action-maps [am-key o])]
+               :when action]
+           (fn [^ActionEvent e]
+             (action {:source (.getSource e)
+                      :comp-id comp-id
+                      :action am-key}))))))
+    (action-map comp))))
+
+(def default-keymaps
+  {:font-sizing
+   (keymap
+    {"cmd1 EQUALS" :font-size/increase
+     "cmd1 MINUS" :font-size/decrease})})
 
 ;; (def text-area (@clooj.main/current-app :repl-in-text-area))
 ;; (def default-map (focus-map text-area))
@@ -178,13 +221,13 @@
 ;;                                                (noisy-input-map
 ;;                                                 (.getParent default-map)))))
 
-;; (.put
-;;  (.getActionMap text-area)
-;;  :XXX
-;;  (proxy [AbstractAction] []
-;;    (actionPerformed [event]
-;;      (println "DONE XXX")
-;;      (def event event))))
+#_(.put
+   (.getActionMap text-area)
+   :XXX
+   (proxy [AbstractAction] []
+     (actionPerformed [event]
+       (println "DONE XXX")
+       (def event event))))
 
 
 

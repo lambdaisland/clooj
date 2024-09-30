@@ -429,14 +429,24 @@
 
 (defn debounce [f ms]
   (let [timer (Timer. "debounce")
-        !task (volatile! nil)]
+        !task (volatile! nil)
+        !last-call (volatile! nil)]
     (fn [& args]
       (vswap! !task
               (fn [^TimerTask t]
+                (vswap! !last-call
+                        (fn [lc]
+                          (let [n (System/nanoTime)]
+                            (when lc
+                              (println "T->" (double (/ (- n lc) 1e6))))
+                            n)))
                 (when t
                   (.cancel t))
                 (let [^TimerTask t (proxy [java.util.TimerTask] []
                                      (run []
-                                       (apply f args)))]
+                                       (try
+                                         (apply f args)
+                                         (catch Exception e
+                                           (println "Error in debounce:" e)))))]
                   (.schedule timer t ^long ms)
                   t))))))

@@ -59,7 +59,8 @@
 
 ;; Version of PushbackReader that also keeps track of the position in the buffer.
 (deftype PosPushbackReader
-    [rdr ^"[Ljava.lang.Object;" buf
+    [rdr
+     ^"[Ljava.lang.Object;" buf
      ^long buf-len
      ^:unsynchronized-mutable ^long buf-pos
      ^:unsynchronized-mutable ^long reader-pos]
@@ -94,8 +95,15 @@
 
 (defn ^Closeable pos-push-back-reader
   "Creates a PushbackReader from a given reader or string"
-  ([rdr] (pos-push-back-reader rdr 1))
-  ([rdr buf-len] (PosPushbackReader. (reader-types/to-rdr rdr) (object-array buf-len) buf-len buf-len 0)))
+  ([rdr]
+   (pos-push-back-reader rdr))
+  ([rdr doc-offset]
+   (PosPushbackReader.
+    (reader-types/to-rdr rdr)
+    (object-array 1)
+    1
+    1
+    doc-offset)))
 
 (set! *warn-on-reflection* true)
 
