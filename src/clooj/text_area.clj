@@ -18,6 +18,9 @@
 (defn caret-position ^long [^RSyntaxTextArea rsta]
   (.getCaretPosition rsta))
 
+(defn set-caret-position [^RSyntaxTextArea rsta ^long pos]
+  (.setCaretPosition rsta pos))
+
 (defn text ^String [^RSyntaxTextArea rsta]
   (.getText rsta))
 

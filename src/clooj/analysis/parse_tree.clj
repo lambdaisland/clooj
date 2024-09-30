@@ -118,7 +118,10 @@
 
 ;; Experimetally when typing naturally it seems the time between keystrokes for
 ;; me ranges from 50 to 300ms, so 250 seems reasonable. As soon as a person
-;; stops timing for this long we (partially) reparse.
+;; stops timing for this long we (partially) reparse. (re-)parsing takes less
+;; than 1ms on small files, up to tens of milleseconds for larger
+;; files (clojure.core which is 200+kb / 8000+lines parses in 50ms), this is on
+;; an old thinkpad.
 (def debounce-timeout 250)
 
 (def document-parse-tree
@@ -166,7 +169,7 @@
                (clooj.text-area/doc (clooj.gui/resolve :doc-text-area))))]
   (.removeDocumentListener  (clooj.text-area/doc (clooj.gui/resolve :doc-text-area))
                             l))
-#_
+
 (def x
   (document-parse-tree (clooj.text-area/doc (clooj.gui/resolve :doc-text-area))))
 #_

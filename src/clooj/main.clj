@@ -333,6 +333,7 @@
      (indent/setup-autoindent :doc-text-area)
      (.setDocumentFilter (text-area/doc rsta)
                          (mw/doc-filter :doc-text-area))
+     (mw/enable-middleware :doc-text-area :replace [#'mw/wrap-match-pair :doc-text-area])
      rsta)))
 
 (defn create-frame ^JFrame []
