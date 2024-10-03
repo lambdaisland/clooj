@@ -6,3 +6,4 @@ target/
 .nrepl-port
 .cpcache
 *~
+*.local.*

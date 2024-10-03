@@ -1,7 +1,7 @@
-(ns clooj.state
-  )
+(ns clooj.state)
 
-(defonce component-registry (atom {}))
+(defonce component-registry
+  (atom {}))
 
 (defonce component-config
   (atom
@@ -19,9 +19,11 @@
                         :action-maps [:default]}
     :arglist-label {:font ["Monospaced" 12]}}))
 
-(defonce buffers (atom {}))
+(defonce buffers
+  (atom {}))
 
-(defonce repls (atom {}))
+(defonce repls
+  (atom {}))
 
 (defonce key-maps
   (atom {}))
