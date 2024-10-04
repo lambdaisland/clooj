@@ -75,7 +75,7 @@
   (let [process (repl-process project-path classpath-items)
         input-writer  (PrintWriter. (.getOutputStream process) true)
         is (.getInputStream process)]
-    (future (utils/copy-input-stream-to-writer is result-writer)); :buffer-size 10))
+    (future (utils/copy-input-stream-to-writer is result-writer)); :document-size 10))
     {:input-writer input-writer
      :project-path project-path
      :process process

@@ -1,7 +1,7 @@
 (ns clooj.gui
   (:refer-clojure :exclude [resolve])
   (:require
-   [clooj.buffer :as buffer]
+   [clooj.document :as document]
    [clooj.keymaps :as keymaps]
    [clooj.state :as state]
    [clooj.text-area :as text-area]
@@ -19,13 +19,12 @@
   (when (instance? JComponent comp)
     (keymaps/setup-keymaps comp comp-id))
   (when (instance? RSyntaxTextArea comp)
-    (text-area/set-doc-filter (text-area/doc comp) (text-area/dynamic-doc-filter comp-id))
     (text-area/add-caret-listener
      comp
      (fn [^RSyntaxTextArea rsta]
-       (when-let [buffer (:buffer (config comp-id))]
-         (swap! state/buffers
-                assoc-in [buffer :caret]
+       (when-let [document (:document (config comp-id))]
+         (swap! state/documents
+                assoc-in [document :caret]
                 (.getCaretPosition rsta))))))
   comp)
 
@@ -50,9 +49,9 @@
   (utils/awt-event
     (.setEditable rsta editable)))
 
-(defmethod apply-config-key :buffer [_ ^RSyntaxTextArea rsta _ buf-name]
+(defmethod apply-config-key :document [_ ^RSyntaxTextArea rsta _ buf-name]
   (utils/awt-event
-    (buffer/visit-buffer rsta buf-name)))
+    (document/visit-document rsta buf-name)))
 
 (defn apply-config [comp-id]
   (when-let [comp (resolve comp-id)]
@@ -74,11 +73,11 @@
                  (when-let [comp (resolve comp-id)]
                    (apply-config-key comp-id comp config-key new-val))))))
 
-(defn switch-buffer [comp-id buf-name]
-  (swap! state/component-config assoc-in [comp-id :buffer] buf-name))
+(defn switch-document [comp-id buf-name]
+  (swap! state/component-config assoc-in [comp-id :document] buf-name))
 
-(defn visiting-buffer-id [comp-id]
-  (get-in @state/component-config [comp-id :buffer]))
+(defn visiting-document-id [comp-id]
+  (get-in @state/component-config [comp-id :document]))
 
-(defn visiting-buffer [comp-id]
-  (buffer/resolve (visiting-buffer-id comp-id)))
+(defn visiting-document [comp-id]
+  (document/resolve (visiting-document-id comp-id)))

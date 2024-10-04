@@ -10,7 +10,7 @@
    [clojure.set]
    [clojure.string :as str]
    [clooj.brackets :as brackets]
-   [clooj.buffer :as buffer]
+   [clooj.document :as document]
    [clooj.gui :as gui]
    [clooj.help :as help]
    [clooj.highlighting :as highlighting]
@@ -204,8 +204,8 @@
             (project/save-tree-selection tree (.getNewLeadSelectionPath e))
             (let [^DefaultMutableTreeNode node (.. e getPath getLastPathComponent)
                   f (.getUserObject node)]
-              (gui/switch-buffer :doc-text-area
-                                 (:name (buffer/ensure-buffer-for-file f)))))))))))
+              (gui/switch-document :doc-text-area
+                                 (:name (document/ensure-document-for-file f)))))))))))
 
 ;; build gui
 
@@ -637,7 +637,7 @@
         project-path (first (project/get-selected-projects app))
         file (find-file project-path src-file)]
     (when (and file line)
-      (buffer/visit-file (gui/resolve :doc-text-area) file)
+      (document/visit-file (gui/resolve :doc-text-area) file)
       (project/set-tree-selection (:docs-tree app) (.getAbsolutePath ^File file))
       (text-area/scroll-to-line text-comp line))))
 
@@ -707,8 +707,8 @@
 
 (defn initial-setup []
   (repl/start-internal-repl)
-  (buffer/ensure-buffer "*scratch*" "text/clojure")
-  (buffer/associate-repl "*scratch*" :clooj.repl/internal))
+  (document/ensure-document "*scratch*" "text/clojure")
+  (document/associate-repl "*scratch*" :clooj.repl/internal))
 
 (defn setup-uncaught-exception-handler []
   (Thread/setDefaultUncaughtExceptionHandler
@@ -742,7 +742,7 @@
         (project/load-expanded-paths tree)
         (when (false? (project/load-tree-selection tree))
           (repl-main/start-repl app nil))))
-  (swap! state/key-maps merge keymaps/default-keymaps)
+  (swap! state/keymaps merge keymaps/default-keymaps)
   (gui/setup-config-watch))
 
 (defn -show []

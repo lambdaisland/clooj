@@ -134,8 +134,8 @@
     (fn [keystroke]
       (let [cc @state/component-config]
         (first
-         (for [km-key (get-in cc [comp-id :key-maps :focus])
-               :let [action-key (get-in @state/key-maps [km-key keystroke])]
+         (for [km-key (get-in cc [comp-id :keymaps :focus])
+               :let [action-key (get-in @state/keymaps [km-key keystroke])]
                :when action-key]
            action-key))))
     (focus-map comp)))

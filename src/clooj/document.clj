@@ -1,10 +1,11 @@
-(ns clooj.buffer
+(ns clooj.document
   (:refer-clojure :exclude [resolve])
   (:require
    [clojure.java.io :as io]
    [clojure.string :as str]
    [clooj.analysis.parse-tree :as parse-tree]
-   [clooj.state :as state])
+   [clooj.state :as state]
+   [clooj.text-area :as text-area])
   (:import
    (java.io File PrintWriter Writer)
    (org.fife.ui.rsyntaxtextarea RSyntaxDocument RSyntaxTextArea)))
@@ -84,7 +85,7 @@
    "unix"         "text/unix"})
 
 (defn resolve [buf-name]
-  (get @state/buffers buf-name))
+  (get @state/documents buf-name))
 
 (defn file->syntax-style [^File file]
   (let [;; If there's no period in the filename this yields the whole name,
@@ -92,8 +93,14 @@
         ext (str/lower-case (last (str/split (.getName (io/file "foo.cljs")) #"\.")))]
     (ext->syntax-style ext "text/plain")))
 
-(defn doc-for-file [^File file syntax-style]
+(defn new-doc ^RSyntaxDocument [syntax-style]
   (let [doc (RSyntaxDocument. syntax-style)]
+    ;; FIXME: this does not belong here, the middleware should be on the doc level?
+    (text-area/set-doc-filter doc (text-area/dynamic-doc-filter :doc-text-area))
+    doc))
+
+(defn doc-for-file [^File file syntax-style]
+  (let [doc (new-doc syntax-style)]
     (.insertString doc 0 ^String (slurp file) nil)
     doc))
 
@@ -102,37 +109,37 @@
     (= "text/clojure" syntax-style)
     (assoc :parse-tree (parse-tree/document-parse-tree doc))))
 
-(defn assoc-buffer [buffers id buf-opts]
-  (assoc buffers id (-> buf-opts
+(defn assoc-document [documents id buf-opts]
+  (assoc documents id (-> buf-opts
                         with-parse-tree
                         (assoc :id id))))
 
-(defn ensure-buffer [buf-name syntax-style]
+(defn ensure-document [buf-name syntax-style]
   (get
-   (swap! state/buffers
-          (fn [buffers]
-            (if (get buffers buf-name)
-              buffers
-              (assoc-buffer
-               buffers buf-name
+   (swap! state/documents
+          (fn [documents]
+            (if (get documents buf-name)
+              documents
+              (assoc-document
+               documents buf-name
                {:name buf-name
                 :syntax-style syntax-style
-                :doc (RSyntaxDocument. syntax-style)
+                :doc (new-doc syntax-style)
                 :caret 0}))))
    buf-name))
 
 (defn associate-repl [buf-name repl-name]
-  (swap! state/buffers assoc-in [buf-name :repl] repl-name))
+  (swap! state/documents assoc-in [buf-name :repl] repl-name))
 
-(defn ensure-buffer-for-file [^File file]
+(defn ensure-document-for-file [^File file]
   (let [path (.getCanonicalPath file)]
     (get
-     (swap! state/buffers
-            (fn [buffers]
-              (if (get buffers path)
-                buffers
-                (assoc-buffer
-                 buffers path
+     (swap! state/documents
+            (fn [documents]
+              (if (get documents path)
+                documents
+                (assoc-document
+                 documents path
                  (let [syntax-style (file->syntax-style file)]
                    {:name         path
                     :file         file
@@ -141,7 +148,7 @@
                     :repl         :clooj.repl/internal})))))
      path)))
 
-(defn visit-buffer [^RSyntaxTextArea text-area buf-name]
+(defn visit-document [^RSyntaxTextArea text-area buf-name]
   (let [{:keys [doc caret]} (resolve buf-name)]
     (when doc
       (.setDocument text-area doc)
@@ -149,13 +156,13 @@
         (.setCaretPosition text-area caret)))))
 
 (defn visit-file [^RSyntaxTextArea text-area ^File file]
-  (let [{:keys [file doc]} (ensure-buffer-for-file file)]
+  (let [{:keys [file doc]} (ensure-document-for-file file)]
     (.setDocument text-area doc)))
 
 (defn append-str [^RSyntaxDocument doc ^String str]
   (.insertString doc (.getLength doc) str nil))
 
-(defn buffer-writer [buf-name]
+(defn document-writer [buf-name]
   (PrintWriter.
    (proxy [Writer] []
      (write
@@ -178,7 +185,7 @@
   (let [{:keys [caret parse-tree repl]} (resolve buf-id)]
     (parse-tree/at-pos @parse-tree caret)))
 
-(defn buffer-ns [buf-id]
+(defn document-ns [buf-id]
   (let [{:keys [parse-tree]} (resolve buf-id)]
     (some (fn [f]
             (when (and (list? f)
@@ -189,10 +196,10 @@
 (comment
   (visit-file
    (clooj.gui/resolve :doc-text-area)
-   (io/file "/home/arne/github/clooj/src/clooj/buffer.clj"))
-  (ensure-buffer-for-file (io/file "/home/arne/github/clooj/src/clooj/buffer.clj")))
+   (io/file "/home/arne/github/clooj/src/clooj/document.clj"))
+  (ensure-document-for-file (io/file "/home/arne/github/clooj/src/clooj/document.clj")))
 
-;; (meta (last @(:parse-tree (ensure-buffer-for-file (io/file "/home/arne/github/clooj/src/clooj/middleware.clj")))))
+;; (meta (last @(:parse-tree (ensure-document-for-file (io/file "/home/arne/github/clooj/src/clooj/middleware.clj")))))
 ;; {:pos 2440, :end 2527}
 ;; {:pos 2440, :end 2526}
 ;; {:pos 2245, :end 2435}

@@ -55,9 +55,9 @@
 (defrecord LiteralNode [o])
 
 (defprotocol PosReader
-  (rdr-pos [this] "Current position in the buffer"))
+  (rdr-pos [this] "Current position in the document"))
 
-;; Version of PushbackReader that also keeps track of the position in the buffer.
+;; Version of PushbackReader that also keeps track of the position in the document.
 (deftype PosPushbackReader
     [rdr
      ^"[Ljava.lang.Object;" buf
@@ -81,7 +81,7 @@
   IPushbackReader
   (unread [reader ch]
     (when ch
-      (if (zero? buf-pos) (throw (RuntimeException. "Pushback buffer is full")))
+      (if (zero? buf-pos) (throw (RuntimeException. "Pushback document is full")))
       (set! reader-pos (dec reader-pos))
       (set! buf-pos (dec buf-pos))
       (aset buf buf-pos ch)))
@@ -1000,12 +1000,12 @@
   ([reader] (read reader true nil))
   ([{eof :eof :as opts :or {eof :eofthrow}} reader]
    (when (source-logging-reader? reader)
-     (let [^StringBuilder buf (:buffer @(.source-log-frames ^SourceLoggingPushbackReader reader))]
+     (let [^StringBuilder buf (:document @(.source-log-frames ^SourceLoggingPushbackReader reader))]
        (.setLength buf 0)))
    (read* reader (= eof :eofthrow) eof nil opts (LinkedList.)))
   ([reader eof-error? sentinel]
    (when (source-logging-reader? reader)
-     (let [^StringBuilder buf (:buffer @(.source-log-frames ^SourceLoggingPushbackReader reader))]
+     (let [^StringBuilder buf (:document @(.source-log-frames ^SourceLoggingPushbackReader reader))]
        (.setLength buf 0)))
    (read* reader eof-error? sentinel nil {} (LinkedList.))))
 
@@ -1042,12 +1042,12 @@
   ([] (read+string (source-logging-push-back-reader *in*)))
   ([stream] (read+string stream true nil))
   ([^SourceLoggingPushbackReader stream eof-error? eof-value]
-   (let [^StringBuilder buf (doto ^StringBuilder (:buffer @(.source-log-frames stream)) (.setLength 0))
+   (let [^StringBuilder buf (doto ^StringBuilder (:document @(.source-log-frames stream)) (.setLength 0))
          o (log-source stream (read stream eof-error? eof-value))
          s (.trim (str buf))]
      [o s]))
   ([opts ^SourceLoggingPushbackReader stream]
-   (let [^StringBuilder buf (doto ^StringBuilder (:buffer @(.source-log-frames stream)) (.setLength 0))
+   (let [^StringBuilder buf (doto ^StringBuilder (:document @(.source-log-frames stream)) (.setLength 0))
          o (log-source stream (read opts stream))
          s (.trim (str buf))]
      [o s])))

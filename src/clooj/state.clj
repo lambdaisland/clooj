@@ -5,35 +5,32 @@
 
 (defonce component-config
   (atom
-   {:doc-text-area {:middleware {}
-                    :keymaps []
-                    :font ["Iosevka Fixed SS14" 19]
-                    :line-wrap false
-                    :key-maps {:focus [:eval :font-sizing]}
-                    :action-maps [:default]}
-    :repl-out-text-area {:middleware {}
-                         :keymaps []
-                         :font ["Iosevka Fixed SS14" 12]
-                         :line-wrap true
-                         :key-maps {:focus [:font-sizing]}
-                         :editable? false
+   {:doc-text-area      {:middleware  {}
+                         :font        ["Iosevka Fixed SS14" 19]
+                         :line-wrap   false
+                         :keymaps     {:focus [:eval :font-sizing]}
+                         :action-maps [:default]}
+    :repl-out-text-area {:middleware  {}
+                         :font        ["Iosevka Fixed SS14" 12]
+                         :line-wrap   true
+                         :keymaps     {:focus [:font-sizing]}
+                         :editable?   false
                          :action-maps [:default]
-                         :buffer  "*Clooj Internal REPL*"}
-    :repl-in-text-area {:middleware {}
-                        :keymaps []
-                        :font ["Iosevka Fixed SS14" 12]
-                        :line-wrap true
-                        :key-maps {:focus [:font-sizing]}
-                        :action-maps [:default]}
-    :arglist-label {:font ["Monospaced" 12]}}))
+                         :document    "*Clooj Internal REPL*"}
+    :repl-in-text-area  {:middleware  {}
+                         :font        ["Iosevka Fixed SS14" 12]
+                         :line-wrap   true
+                         :keymaps     {:focus [:font-sizing]}
+                         :action-maps [:default]}
+    :arglist-label      {:font ["Monospaced" 12]}}))
 
-(defonce buffers
+(defonce documents
   (atom {}))
 
 (defonce repls
   (atom {}))
 
-(defonce key-maps
+(defonce keymaps
   (atom {}))
 
 (defmacro action [var-name]
@@ -50,7 +47,7 @@
 
 
 (comment
-  (keys @buffers)
+  (keys @documents)
 
   (reset! action-maps
 

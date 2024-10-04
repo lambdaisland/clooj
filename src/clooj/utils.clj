@@ -400,7 +400,7 @@
    (PrintStream. true)))
 
 (defn process-reader
-  "Create a buffered reader from the output of a process."
+  "Create a documented reader from the output of a process."
   [^Process process]
   (-> process
       .getInputStream
