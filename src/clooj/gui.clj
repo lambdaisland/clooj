@@ -19,12 +19,11 @@
   (when (instance? JComponent comp)
     (keymaps/setup-keymaps comp comp-id))
   (when (instance? RSyntaxTextArea comp)
+    (text-area/set-doc-filter (text-area/doc comp) (text-area/dynamic-doc-filter comp-id))
     (text-area/add-caret-listener
      comp
      (fn [^RSyntaxTextArea rsta]
-       (prn "CARET POS" comp-id)
        (when-let [buffer (:buffer (config comp-id))]
-         (prn "CARET POS" buffer)
          (swap! state/buffers
                 assoc-in [buffer :caret]
                 (.getCaretPosition rsta))))))

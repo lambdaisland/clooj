@@ -178,8 +178,26 @@
   (let [{:keys [caret parse-tree repl]} (resolve buf-id)]
     (parse-tree/at-pos @parse-tree caret)))
 
+(defn buffer-ns [buf-id]
+  (let [{:keys [parse-tree]} (resolve buf-id)]
+    (some (fn [f]
+            (when (and (list? f)
+                       (= 'ns (first f)))
+              (parse-tree/value (second f))))
+          @parse-tree)))
+
 (comment
   (visit-file
    (clooj.gui/resolve :doc-text-area)
    (io/file "/home/arne/github/clooj/src/clooj/buffer.clj"))
   (ensure-buffer-for-file (io/file "/home/arne/github/clooj/src/clooj/buffer.clj")))
+
+;; (meta (last @(:parse-tree (ensure-buffer-for-file (io/file "/home/arne/github/clooj/src/clooj/middleware.clj")))))
+;; {:pos 2440, :end 2527}
+;; {:pos 2440, :end 2526}
+;; {:pos 2245, :end 2435}
+
+;; (clooj.text-area/get-text-str (clooj.gui/resolve :doc-text-area)
+;;                               ;; 2440 (inc (- 2526 2440))
+;;                               2440 (inc (- 2527 2440))
+;;                               )

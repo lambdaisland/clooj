@@ -7,7 +7,7 @@
 
 (defprotocol ClojureRuntime
   (capabilities [this])
-  (evaluate [this code] "Evaluate code (a string).")
+  (evaluate [this ns code] "Evaluate code (a string) in ns (a symbol).")
   (close [this] "Stop the repl instance.")
   (ns-info [this ns])
   (var-info [this ns]))

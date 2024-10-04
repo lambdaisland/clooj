@@ -80,7 +80,7 @@
      (clear []
        (throw (UnsupportedOperationException. "Can't clear immutable InputMap")))
      (get [keystroke]
-       (debug "got keystroke" keystroke)
+       (debug "Keystroke:" keystroke)
        (or (f keystroke)
            (when parent
              (.get parent keystroke))))
@@ -109,7 +109,7 @@
      (clear []
        (throw (UnsupportedOperationException. "Can't clear immutable ActionMap")))
      (get ^Action [o]
-       (debug "resolving action" o (f o))
+       (debug "Action:" o (f o))
        (if-let [action-fn (f o)]
          (proxy [AbstractAction] []
            (actionPerformed [event]

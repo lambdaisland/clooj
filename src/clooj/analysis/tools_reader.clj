@@ -145,13 +145,21 @@
 
 (declare read-tagged)
 
+(defmacro read-with-pos [rdr & body]
+  `(let [pos# (rdr-pos ~rdr)
+         val# (do ~@body)]
+     (with-meta val#
+       {:pos (dec pos#)
+        :end (dec (rdr-pos ~rdr))})))
+
 (defn- read-dispatch
   [rdr _ opts pending-forms]
-  (if-let [ch (read-char rdr)]
-    (if-let [dm (dispatch-macros ch)]
-      (dm rdr ch opts pending-forms)
-      (read-tagged (doto rdr (unread ch)) ch opts pending-forms)) ;; ctor reader is implemented as a tagged literal
-    (err/throw-eof-at-dispatch rdr)))
+  (read-with-pos rdr
+    (if-let [ch (read-char rdr)]
+      (if-let [dm (dispatch-macros ch)]
+        (dm rdr ch opts pending-forms)
+        (read-tagged (doto rdr (unread ch)) ch opts pending-forms)) ;; ctor reader is implemented as a tagged literal
+      (err/throw-eof-at-dispatch rdr))))
 
 (defn- read-unmatched-delimiter
   [rdr ch opts pending-forms]
@@ -161,31 +169,23 @@
 ;; readers
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmacro read-with-pos [rdr & body]
-  `(let [pos# (rdr-pos ~rdr)
-         val# (do ~@body)]
-     (with-meta val#
-       {:pos (dec pos#)
-        :end (dec (rdr-pos ~rdr))})))
-
 (defn read-regex
   [rdr ch opts pending-forms]
-  (read-with-pos rdr
-                 (->LiteralNode
-                  (let [sb (StringBuilder.)]
-                    (loop [ch (read-char rdr)]
-                      (if (identical? \" ch)
-                        (Pattern/compile (str sb))
-                        (if (nil? ch)
-                          (err/throw-eof-reading rdr :regex sb)
-                          (do
-                            (.append sb ch )
-                            (when (identical? \\ ch)
-                              (let [ch (read-char rdr)]
-                                (if (nil? ch)
-                                  (err/throw-eof-reading rdr :regex sb))
-                                (.append sb ch)))
-                            (recur (read-char rdr))))))))))
+  (->LiteralNode
+   (let [sb (StringBuilder.)]
+     (loop [ch (read-char rdr)]
+       (if (identical? \" ch)
+         (Pattern/compile (str sb))
+         (if (nil? ch)
+           (err/throw-eof-reading rdr :regex sb)
+           (do
+             (.append sb ch )
+             (when (identical? \\ ch)
+               (let [ch (read-char rdr)]
+                 (if (nil? ch)
+                   (err/throw-eof-reading rdr :regex sb))
+                 (.append sb ch)))
+             (recur (read-char rdr)))))))))
 
 (defn- read-unicode-char
   ([^String token ^long offset ^long length ^long base]
@@ -431,15 +431,13 @@
 
 (defn- read-set
   [rdr _ opts pending-forms]
-  (read-with-pos rdr
-    (PersistentHashSet/createWithCheck
-     (read-delimited :set \} rdr opts pending-forms))))
+  (PersistentHashSet/createWithCheck
+   (read-delimited :set \} rdr opts pending-forms)))
 
 (defn- read-discard
   "Read and discard the first object from rdr"
   [rdr _ opts pending-forms]
-  (read-with-pos rdr
-    (->DiscardNode (read* rdr true nil opts pending-forms))))
+  (->DiscardNode (read* rdr true nil opts pending-forms)))
 
 (defn- read-symbolic-value
   [rdr _ opts pending-forms]
@@ -568,8 +566,7 @@
   (if (thread-bound? #'arg-env)
     (throw (IllegalStateException. "Nested #()s are not allowed")))
   (binding [arg-env (sorted-map)]
-    (read-with-pos rdr
-      (read* (doto rdr (unread \()) true nil opts pending-forms))))
+    (read* (doto rdr (unread \()) true nil opts pending-forms)))
 
 (defn- register-arg
   "Registers an argument to the arg-env"

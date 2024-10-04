@@ -36,6 +36,19 @@
     (set? el)
     (vec (sort-by (comp :pos meta) el))))
 
+(defn value [el]
+  (cond
+    (instance? clooj.analysis.tools_reader.MetaNode el)
+    (with-meta (:o el) (:m el))
+    (instance? clooj.analysis.tools_reader.DiscardNode el)
+    nil
+    (instance? clooj.analysis.tools_reader.CommentNode el)
+    nil
+    (instance? clooj.analysis.tools_reader.LiteralNode el)
+    (:o el)
+    :else
+    el))
+
 (defn at-pos
   "Binary search for form-at-point"
   [forms idx]
@@ -52,9 +65,10 @@
       #_(when-not (number? (:end (meta (last forms))))
           (prn "NO META" (last forms)))
       (cond
-        (or (< idx (:pos (meta (first forms))))
-            (< (:end (meta (last forms))) idx))
+        (< idx (:pos (meta (first forms))))
         nil
+        (< (:end (meta (last forms))) idx)
+        [(last forms)]
         (< idx pos)
         (at-pos (lower-half forms mid) idx)
         (< end idx)

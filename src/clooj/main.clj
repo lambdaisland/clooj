@@ -319,8 +319,6 @@
      (text-area/add-caret-listener rsta #(display-caret-position % app))
      (help/setup-tab-help rsta app)
      (indent/setup-autoindent :doc-text-area)
-     (.setDocumentFilter (text-area/doc rsta)
-                         (mw/doc-filter :doc-text-area))
      (mw/enable-middleware :doc-text-area :replace [#'mw/wrap-match-pair :doc-text-area])
      rsta)))
 

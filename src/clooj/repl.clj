@@ -31,6 +31,7 @@
         {:keys [pos end]} (meta (first parse-tree))
         repl (comp-id->repl comp-id)]
     (proto/evaluate (:repl repl)
+                    (buffer/buffer-ns buf-id)
                     (text-area/get-text-str (gui/resolve comp-id)
                                             pos (inc (- end pos))))))
 

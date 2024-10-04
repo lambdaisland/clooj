@@ -1,11 +1,13 @@
 (ns clooj.text-area
   (:require
    [clojure.string :as str]
+   [clooj.state :as state]
    [clooj.utils :as util])
   (:import
    (java.awt Point)
    (javax.swing JViewport)
    (javax.swing.event CaretListener DocumentListener)
+   (javax.swing.text DocumentFilter DocumentFilter$FilterBypass)
    (org.fife.ui.rsyntaxtextarea AbstractTokenMaker RSyntaxDocument RSyntaxTextArea TokenMakerFactory)))
 
 (comment
@@ -174,3 +176,48 @@
     (.setAutoIndentEnabled false)
     (.setAntiAliasingEnabled true)
     (.setLineWrap wrap)))
+
+(defn dynamic-replace [comp-id ^DocumentFilter$FilterBypass fb offset len text attrs]
+  (let [mw (get-in @state/component-config [comp-id :middleware :replace])
+        f (fn [offset len text attrs]
+            (.replace fb offset len text attrs))
+        f (reduce (fn [f m]
+                    (if (vector? m)
+                      (apply (first m) f (rest m))
+                      (m f)))
+                  f mw)]
+    (f offset len text attrs)))
+
+(defn dynamic-remove [comp-id ^DocumentFilter$FilterBypass fb offset len]
+  (let [mw (get-in @state/component-config [comp-id :middleware :remove])
+        f (fn [offset len]
+            (.remove fb offset len))
+        f (reduce (fn [f m]
+                    (if (vector? m)
+                      (apply (first m) f (rest m))
+                      (m f)))
+                  f mw)]
+    (f offset len)))
+
+(defn dynamic-insert [comp-id ^DocumentFilter$FilterBypass fb offset string attrs]
+  (let [mw (get-in @state/component-config [comp-id :middleware :insert])
+        f (fn [offset string attrs]
+            (.insertString fb offset string attrs))
+        f (reduce (fn [f m]
+                    (if (vector? m)
+                      (apply (first m) f (rest m))
+                      (m f)))
+                  f mw)]
+    (f offset string attrs)))
+
+(defn dynamic-doc-filter [comp-id]
+  (proxy [DocumentFilter] []
+    (replace [fb offset len text attrs]
+      (dynamic-replace comp-id fb offset len text attrs))
+    (remove [fb offset len]
+      (dynamic-remove comp-id fb offset len))
+    (insertString [fb offset string attrs]
+      (dynamic-insert comp-id fb offset string attrs))))
+
+(defn set-doc-filter [^RSyntaxDocument doc doc-filter]
+  (.setDocumentFilter doc doc-filter))

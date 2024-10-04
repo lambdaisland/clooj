@@ -102,7 +102,7 @@
   [project-path classpath-items result-writer]
   (let [repl-map (launch-repl project-path classpath-items result-writer)]
     (reify protocols/ClojureRuntime
-      (evaluate [this code]
+      (evaluate [this ns code]
         (evaluate-code repl-map code))
       (close [this]
         (close repl-map))
