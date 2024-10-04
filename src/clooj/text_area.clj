@@ -70,9 +70,13 @@
     (doseq [l (.getDocumentListeners ^RSyntaxDocument d)]
       (.removeDocumentListener d l))))
 
-(defn get-text-str [^RSyntaxTextArea text-comp]
-  (let [^RSyntaxDocument doc (.getDocument text-comp)]
-    (.getText doc 0 (.getLength doc))))
+(defn get-text-str
+  ([^RSyntaxTextArea text-comp start end]
+   (let [^RSyntaxDocument doc (.getDocument text-comp)]
+     (.getText doc start end)))
+  ([^RSyntaxTextArea text-comp]
+   (let [^RSyntaxDocument doc (.getDocument text-comp)]
+     (.getText doc 0 (.getLength doc)))))
 
 (defn add-caret-listener [^RSyntaxTextArea text-comp f]
   (.addCaretListener text-comp

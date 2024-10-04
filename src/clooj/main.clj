@@ -10,6 +10,7 @@
    [clojure.set]
    [clojure.string :as str]
    [clooj.brackets :as brackets]
+   [clooj.buffer :as buffer]
    [clooj.gui :as gui]
    [clooj.help :as help]
    [clooj.highlighting :as highlighting]
@@ -18,7 +19,8 @@
    [clooj.middleware :as mw]
    [clooj.navigate :as navigate]
    [clooj.project :as project]
-   [clooj.repl.main :as repl]
+   [clooj.repl :as repl]
+   [clooj.repl.main :as repl-main]
    [clooj.repl.output :as repl-output]
    [clooj.search :as search]
    [clooj.settings :as settings]
@@ -28,7 +30,7 @@
   (:import
    (java.awt AWTEvent Color Font Toolkit Window)
    (java.awt.event ActionListener AWTEventListener MouseAdapter MouseEvent WindowAdapter)
-   (java.io BufferedWriter File FileOutputStream OutputStreamWriter StringReader)
+   (java.io BufferedWriter File FileOutputStream OutputStreamWriter)
    (java.util.concurrent LinkedBlockingQueue)
    (javax.swing BorderFactory JButton JCheckBox JFrame JLabel JList JMenuBar JOptionPane JPanel JScrollPane JTextArea JTextField JTree KeyStroke SpringLayout UIManager)
    (javax.swing.event TreeExpansionListener TreeSelectionListener)
@@ -130,11 +132,11 @@
 
 (defn activate-caret-highlighter [app]
   (when-let [text-comp (app :doc-text-area)]
-    (let [f #(handle-caret-move :doc-text-area % (repl/get-file-ns app))]
+    (let [f #(handle-caret-move :doc-text-area % (repl-main/get-file-ns app))]
       (text-area/add-caret-listener text-comp f)
       (text-area/add-text-change-listener text-comp f)))
   (when-let [text-comp (app :repl-in-text-area)]
-    (let [f #(handle-caret-move :repl-in-text-area % (repl/get-file-ns app))]
+    (let [f #(handle-caret-move :repl-in-text-area % (repl-main/get-file-ns app))]
       (text-area/add-caret-listener text-comp f)
       (text-area/add-text-change-listener text-comp f))))
 
@@ -184,18 +186,6 @@
                                            (update-caret-position %)
                                            (update-temp app)))))
 
-(declare restart-doc)
-
-(defn file-suffix [^File f]
-  (utils/when-lets [name (.getName f)
-                    last-dot (.lastIndexOf name ".")
-                    suffix (subs name (inc last-dot))]
-    suffix))
-
-(defn text-file? [f]
-  (not (some #{(file-suffix f)}
-             ["jar" "class" "dll" "jpg" "png" "bmp"])))
-
 (defn setup-tree [app]
   (let [tree (:docs-tree app)
         save #(project/save-expanded-paths tree)]
@@ -211,13 +201,11 @@
        (reify TreeSelectionListener
          (valueChanged [this e]
            (utils/awt-event
-             (project/save-tree-selection tree (.getNewLeadSelectionPath e))
-             (let [^DefaultMutableTreeNode node (.. e getPath getLastPathComponent)
-                   f (.getUserObject node)]
-               (when (and
-                      (not= f @(app :file))
-                      (text-file? f))
-                 (restart-doc app f))))))))))
+            (project/save-tree-selection tree (.getNewLeadSelectionPath e))
+            (let [^DefaultMutableTreeNode node (.. e getPath getLastPathComponent)
+                  f (.getUserObject node)]
+              (gui/switch-buffer :doc-text-area
+                                 (:name (buffer/ensure-buffer-for-file f)))))))))))
 
 ;; build gui
 
@@ -252,13 +240,13 @@
 (defn exit-if-closed [^java.awt.Window f app]
   (when-not @embedded
     (.addWindowListener f
-      (proxy [WindowAdapter] []
-        (windowClosing [_]
-          (save-caret-position app)
-          (System/exit 0))))))
+                        (proxy [WindowAdapter] []
+                          (windowClosing [_]
+                            (save-caret-position app)
+                            (System/exit 0))))))
 
 (def no-project-txt
-    "\n Welcome to clooj, a lightweight IDE for clojure\n
+  "\n Welcome to clooj, a lightweight IDE for clojure\n
      To start coding, you can either\n
        a. create a new project
             (select the Project > New... menu), or
@@ -271,7 +259,7 @@
             (click on it in the tree at left).")
 
 (def no-file-txt
-    "To edit source code you need to either: <br>
+  "To edit source code you need to either: <br>
      &nbsp;1. create a new file
      (select menu <b>File > New...</b>)<br>
      &nbsp;2. edit an existing file by selecting one at left.</html>")
@@ -347,9 +335,8 @@
 (defn create-app []
   (let [doc-text-panel (JPanel.)
         doc-label (JLabel. "Source Editor")
-        repl-out-text-area (text-area/make-text-area false)
+        repl-out-text-area (gui/register :repl-out-text-area (text-area/make-text-area false))
         repl-out-scroll-pane (repl-output/tailing-scroll-pane repl-out-text-area)
-        repl-out-writer (repl/make-repl-writer repl-out-text-area)
         repl-in-text-area (text-area/make-text-area false)
         help-text-area (text-area/make-text-area true)
         help-text-scroll-pane (JScrollPane. help-text-area)
@@ -402,7 +389,6 @@
                      search-regex-checkbox
                      search-close-button
                      pos-label
-                     repl-out-writer
                      doc-split-pane
                      repl-split-pane
                      split-pane
@@ -453,8 +439,6 @@
       navigate/attach-navigation-keys)
     (.setSyntaxEditingStyle repl-in-text-area
                             SyntaxConstants/SYNTAX_STYLE_CLOJURE)
-    (.setSyntaxEditingStyle repl-out-text-area
-                            SyntaxConstants/SYNTAX_STYLE_CLOJURE)
     (.setModel docs-tree (DefaultTreeModel. nil))
     (utils/constrain-to-parent split-pane :n gap :w gap :s (- gap) :e (- gap))
     (utils/constrain-to-parent doc-label :n 0 :w 0 :n 15 :e 0)
@@ -471,8 +455,7 @@
     (activate-caret-highlighter app)
     (setup-temp-writer app)
     #_(utils/attach-action-keys doc-text-area
-                                ["cmd1 ENTER" #(repl/send-selected-to-repl app)])
-    (.setEditable repl-out-text-area false)
+                                ["cmd1 ENTER" #(repl-main/send-selected-to-repl app)])
     (.setEditable help-text-area false)
     (.setBackground help-text-area (Color. 0xFF 0xFF 0xE8))
     (indent/setup-autoindent :repl-in-text-area)
@@ -483,50 +466,50 @@
 
 ;; clooj docs
 
-(defn restart-doc [app ^File file]
-  (let [f @(:file app)
-        txt (text-area/get-text-str (:doc-text-area app))]
-    (send-off temp-file-manager
-              (let [temp-file (project/get-temp-file f)]
-                (fn [_]
-                  (when (and f temp-file (.exists temp-file))
-                    (dump-temp-doc app f txt))
-                  0))))
-  (await temp-file-manager)
-  (let [^JFrame frame (:frame app)
-        ^RSyntaxTextArea text-area (:doc-text-area app)
-        temp-file (project/get-temp-file file)
-        file-to-open (if (and temp-file (.exists temp-file)) temp-file file)
-        ^JLabel doc-label (:doc-label app)]
-    ;; (utils/remove-text-change-listeners text-area)
-    (reset! changing-file true)
-    (save-caret-position app)
-    (.. text-area getHighlighter removeAllHighlights)
-    (if (and file-to-open (.exists file-to-open) (.isFile file-to-open))
-      (do (let [txt (slurp file-to-open)
-                rdr (StringReader. txt)]
-            (.read text-area rdr nil))
-          (.discardAllEdits text-area)
-          (.setText doc-label (str "Source Editor \u2014 " (.getPath file)))
-          (.setEditable text-area true)
-          (.setSyntaxEditingStyle text-area
-                                  (let [file-name (.getName file-to-open)]
-                                    (if (or (str/ends-with? file-name ".clj")
-                                            (str/ends-with? file-name ".clj~")
-                                            (str/ends-with? file-name ".edn")
-                                            (str/ends-with? file-name ".cljs")
-                                            (str/ends-with? file-name ".cljc"))
-                                      SyntaxConstants/SYNTAX_STYLE_CLOJURE
-                                      SyntaxConstants/SYNTAX_STYLE_NONE))))
-      (do (.setText text-area no-project-txt)
-          (.setText doc-label (str "Source Editor (No file selected)"))
-          (.setEditable text-area false)))
+#_(defn restart-doc [app ^File file]
+    (let [f @(:file app)
+          txt (text-area/get-text-str (:doc-text-area app))]
+      (send-off temp-file-manager
+                (let [temp-file (project/get-temp-file f)]
+                  (fn [_]
+                    (when (and f temp-file (.exists temp-file))
+                      (dump-temp-doc app f txt))
+                    0))))
+    (await temp-file-manager)
+    (let [^JFrame frame (:frame app)
+          ^RSyntaxTextArea text-area (:doc-text-area app)
+          temp-file (project/get-temp-file file)
+          file-to-open (if (and temp-file (.exists temp-file)) temp-file file)
+          ^JLabel doc-label (:doc-label app)]
+      ;; (utils/remove-text-change-listeners text-area)
+      (reset! changing-file true)
+      (save-caret-position app)
+      (.. text-area getHighlighter removeAllHighlights)
+      (if (and file-to-open (.exists file-to-open) (.isFile file-to-open))
+        (do (let [txt (slurp file-to-open)
+                  rdr (StringReader. txt)]
+              (.read text-area rdr nil))
+            (.discardAllEdits text-area)
+            (.setText doc-label (str "Source Editor \u2014 " (.getPath file)))
+            (.setEditable text-area true)
+            (.setSyntaxEditingStyle text-area
+                                    (let [file-name (.getName file-to-open)]
+                                      (if (or (str/ends-with? file-name ".clj")
+                                              (str/ends-with? file-name ".clj~")
+                                              (str/ends-with? file-name ".edn")
+                                              (str/ends-with? file-name ".cljs")
+                                              (str/ends-with? file-name ".cljc"))
+                                        SyntaxConstants/SYNTAX_STYLE_CLOJURE
+                                        SyntaxConstants/SYNTAX_STYLE_NONE))))
+        (do (.setText text-area no-project-txt)
+            (.setText doc-label (str "Source Editor (No file selected)"))
+            (.setEditable text-area false)))
 
-    (reset! (app :file) file)
-    (load-caret-position app)
-    (update-caret-position text-area)
-    (repl/apply-namespace-to-repl app)
-    (reset! changing-file false)))
+      (reset! (app :file) file)
+      (load-caret-position app)
+      (update-caret-position text-area)
+      (repl-main/apply-namespace-to-repl app)
+      (reset! changing-file false)))
 
 (defn save-file [app]
   (try
@@ -592,9 +575,9 @@
           (project/update-project-tree (:docs-tree app))
           (project/set-tree-selection (app :docs-tree) path)
           (create-file app dir (str (.getName dir) ".core")))))
-      (catch Exception e (do (JOptionPane/showMessageDialog nil
-                               "Unable to create project."
-                               "Oops" JOptionPane/ERROR_MESSAGE)
+    (catch Exception e (do (JOptionPane/showMessageDialog nil
+                                                          "Unable to create project."
+                                                          "Oops" JOptionPane/ERROR_MESSAGE)
                            (.printStackTrace e)))))
 
 (defn rename-file [app]
@@ -603,7 +586,7 @@
           [^File file namespace] (specify-source
                                   (first (project/get-selected-projects app))
                                   "Rename a source file"
-                                  (repl/get-file-ns app))]
+                                  (repl-main/get-file-ns app))]
       (when file
         (.renameTo ^File @(:file app) file)
         (project/update-project-tree (:docs-tree app))
@@ -623,7 +606,7 @@
 
 (defn remove-project [app]
   (when (utils/confirmed? "Remove the project from list? (No files will be deleted.)"
-                    "Remove project")
+                          "Remove project")
     (project/remove-selected-project app)))
 
 (defn revert-file [app]
@@ -634,7 +617,7 @@
           (when (utils/confirmed? "Revert the file? This cannot be undone." path)
             (.delete temp-file)
             (project/update-project-tree (:docs-tree app))
-            (restart-doc app f)))))))
+            #_(restart-doc app f)))))))
 
 (defn- dir-rank [^File dir]
   (get {"src" 0 "test" 1 "lib" 2} (.getName dir) 100))
@@ -656,9 +639,8 @@
         project-path (first (project/get-selected-projects app))
         file (find-file project-path src-file)]
     (when (and file line)
-      (when (not= file @(:file app))
-        (restart-doc app file)
-        (project/set-tree-selection (:docs-tree app) (.getAbsolutePath ^File file)))
+      (buffer/visit-file (gui/resolve :doc-text-area) file)
+      (project/set-tree-selection (:docs-tree app) (.getAbsolutePath ^File file))
       (text-area/scroll-to-line text-comp line))))
 
 (defn make-menus [app]
@@ -688,16 +670,16 @@
                     ["Unindent lines" "D" "cmd1 OPEN_BRACKET" #(text-area/unindent (:doc-text-area app))]
                     ["Name search/docs" "S" "TAB" #(help/show-tab-help app (help/find-focused-text-pane app) inc)]
                     ["Go to line..." "G" "cmd1 L" #(move-caret-to-line (:doc-text-area app))]
-                    ;;["Go to definition" "G" "cmd1 D" #(goto-definition (repl/get-file-ns app) app)]
+                    ;;["Go to definition" "G" "cmd1 D" #(goto-definition (repl-main/get-file-ns app) app)]
                     )
     (utils/add-menu menu-bar "REPL" "R"
-                    ["Evaluate here" "E" "cmd1 ENTER" #(repl/send-selected-to-repl app)]
-                    ["Evaluate entire file" "F" "cmd1 E" #(repl/send-doc-to-repl app)]
-                    ["Apply file ns" "A" "cmd1 shift A" #(repl/apply-namespace-to-repl app)]
+                    ["Evaluate here" "E" "cmd1 ENTER" #(repl-main/send-selected-to-repl app)]
+                    ["Evaluate entire file" "F" "cmd1 E" #(repl-main/send-doc-to-repl app)]
+                    ["Apply file ns" "A" "cmd1 shift A" #(repl-main/apply-namespace-to-repl app)]
                     ["Clear output" "C" "cmd1 K" #(.setText ^RSyntaxTextArea (app :repl-out-text-area) "")]
-                    ["Restart" "R" "cmd1 R" #(repl/restart-repl app
-                                                                (first (project/get-selected-projects app)))]
-                    ["Print stack trace for last error" "T" "cmd1 T" #(repl/print-stack-trace app)])
+                    ["Restart" "R" "cmd1 R" #(repl-main/restart-repl app
+                                                                     (first (project/get-selected-projects app)))]
+                    ["Print stack trace for last error" "T" "cmd1 T" #(repl-main/print-stack-trace app)])
     (utils/add-menu menu-bar "Search" "S"
                     ["Find" "F" "cmd1 F" #(search/start-find app)]
                     ["Find next" "N" "cmd1 G" #(search/highlight-step app false)]
@@ -725,20 +707,31 @@
 
 ;; startup
 
+(defn initial-setup []
+  (repl/start-internal-repl)
+  (buffer/ensure-buffer "*scratch*" "text/clojure")
+  (buffer/associate-repl "*scratch*" :clooj.repl/internal))
 
-(defn startup []
+(defn setup-uncaught-exception-handler []
   (Thread/setDefaultUncaughtExceptionHandler
    (proxy [Thread$UncaughtExceptionHandler] []
      (uncaughtException [thread exception]
        (println thread)
-       (.printStackTrace ^Throwable exception))))
+       (.printStackTrace ^Throwable exception)))))
+
+(defn set-look-and-feel []
   (UIManager/setLookAndFeel (com.formdev.flatlaf.FlatLightLaf.)
-                            #_(UIManager/getSystemLookAndFeelClassName))
+                            #_(UIManager/getSystemLookAndFeelClassName)))
+
+(defn startup []
+  (setup-uncaught-exception-handler)
+  (set-look-and-feel)
+  (initial-setup)
   (let [app (create-app)]
     (reset! current-app app)
     (make-menus app)
     (add-visibility-shortcut app)
-    (repl/add-repl-input-handler app)
+    (repl-main/add-repl-input-handler app)
     (help/setup-tab-help (app :repl-in-text-area) app)
     (doall (map #(project/add-project app %) (project/load-project-set)))
     (let [frame (app :frame)]
@@ -747,10 +740,10 @@
       (on-window-activation frame #(project/update-project-tree (app :docs-tree))))
     (setup-temp-writer app)
     (setup-tree app)
-    (let [tree (app :docs-tree)]
-      (project/load-expanded-paths tree)
-      (when (false? (project/load-tree-selection tree))
-        (repl/start-repl app nil))))
+    #_(let [tree (app :docs-tree)]
+        (project/load-expanded-paths tree)
+        (when (false? (project/load-tree-selection tree))
+          (repl-main/start-repl app nil))))
   (swap! state/key-maps merge keymaps/default-keymaps)
   (gui/setup-config-watch))
 
@@ -763,18 +756,6 @@
 (defn -main [& args]
   (reset! embedded false)
   (startup))
-
-;; testing
-
-(defn get-text []
-  (text-area/get-text-str (:doc-text-area @current-app)))
-
-;; not working yet:
-;;(defn restart
-;;   "Restart the application"
-;;   []
-;;  (.setVisible (@current-app :frame) false)
-;;  (startup))
 
 (comment
   (startup)

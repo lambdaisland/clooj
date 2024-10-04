@@ -36,7 +36,7 @@
     (set? el)
     (vec (sort-by (comp :pos meta) el))))
 
-(defn find-by-pos
+(defn at-pos
   "Binary search for form-at-point"
   [forms idx]
   #_(when-not (number? idx)
@@ -56,12 +56,12 @@
             (< (:end (meta (last forms))) idx))
         nil
         (< idx pos)
-        (find-by-pos (lower-half forms mid) idx)
+        (at-pos (lower-half forms mid) idx)
         (< end idx)
-        (find-by-pos (upper-half forms mid) idx)
+        (at-pos (upper-half forms mid) idx)
         (<= pos idx end)
         (if-let [ch (children el)]
-          (cons el (find-by-pos children idx))
+          (cons el (at-pos ch idx))
           [el])))))
 
 (defn char-array-reader [arr offset count doc-offset]
@@ -110,6 +110,7 @@
                 ;; (println (map meta new))
                 (into (vec unchanged) new))))))
 
+#_
 (let [doc (clooj.text-area/doc (clooj.gui/resolve :doc-text-area))]
   (run!
    #(.removeDocumentListener doc %)
@@ -170,6 +171,7 @@
   (.removeDocumentListener  (clooj.text-area/doc (clooj.gui/resolve :doc-text-area))
                             l))
 
+#_
 (def x
   (document-parse-tree (clooj.text-area/doc (clooj.gui/resolve :doc-text-area))))
 #_

@@ -61,6 +61,9 @@
   [m]
   (update-keys m #(if (string? %) (keystroke %) %)))
 
+(defn debug [& strs]
+  (apply println "[DEBUG]" strs))
+
 (defn fun-input-map
   "Input map backed by a plain function
   - 0 args - list keys
@@ -77,6 +80,7 @@
      (clear []
        (throw (UnsupportedOperationException. "Can't clear immutable InputMap")))
      (get [keystroke]
+       (debug "got keystroke" keystroke)
        (or (f keystroke)
            (when parent
              (.get parent keystroke))))
@@ -105,6 +109,7 @@
      (clear []
        (throw (UnsupportedOperationException. "Can't clear immutable ActionMap")))
      (get ^Action [o]
+       (debug "resolving action" o (f o))
        (if-let [action-fn (f o)]
          (proxy [AbstractAction] []
            (actionPerformed [event]
@@ -154,7 +159,11 @@
   {:font-sizing
    (keymap
     {"cmd1 EQUALS" :font-size/increase
-     "cmd1 MINUS" :font-size/decrease})})
+     "cmd1 MINUS" :font-size/decrease})
+
+   :eval
+   (keymap
+    {"cmd1 ENTER" :eval/last-sexp})})
 
 ;; (def text-area (@clooj.main/current-app :repl-in-text-area))
 ;; (def default-map (focus-map text-area))
