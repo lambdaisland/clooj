@@ -37,9 +37,13 @@
     (or
      (when (and token1
                 (not (or (some #{token1} special-tokens)
-                         (.startsWith (str/triml token1) "["))))
+                         (.startsWith (str/triml token1) "[")
+                         (re-find #"([.*]/)?def" (str/triml token1)))))
        (second-token-pos txt))
-     2)))
+     (when (and token1 (or (some #{token1} special-tokens)
+                           (re-find #"([.*]/)?def" (str/triml token1))))
+       2)
+     1)))
 
 (defn compute-indent-size [text-comp offset]
   (let [bracket-pos (first (brackets/find-enclosing-brackets

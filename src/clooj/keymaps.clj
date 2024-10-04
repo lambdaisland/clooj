@@ -163,7 +163,8 @@
 
    :eval
    (keymap
-    {"cmd1 ENTER" :eval/last-sexp})})
+    {"shift cmd1 ENTER" :eval/document
+     "cmd1 ENTER" :eval/outer-sexp})})
 
 ;; (def text-area (@clooj.main/current-app :repl-in-text-area))
 ;; (def default-map (focus-map text-area))

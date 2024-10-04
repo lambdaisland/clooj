@@ -28,12 +28,12 @@
     [(:o el)]
     (or (instance? clooj.analysis.tools_reader.CommentNode el)
         (instance? clooj.analysis.tools_reader.LiteralNode el))
-    [el]
-    (sequential? el)
+    nil
+    (and (sequential? el) (seq el))
     (vec el)
-    (map? el)
+    (and (map? el) (seq el))
     (vec (sort-by (comp :pos meta) (mapcat (juxt key val) el)))
-    (set? el)
+    (and (set? el) (seq el))
     (vec (sort-by (comp :pos meta) el))))
 
 (defn value [el]
@@ -52,18 +52,18 @@
 (defn at-pos
   "Binary search for form-at-point"
   [forms idx]
-  #_(when-not (number? idx)
-      (prn "NO NUMBER" idx))
+  (when-not (number? idx)
+    (prn "NO NUMBER" idx))
   (let [mid (middle-idx (count forms))
         el (get forms mid)
         {:keys [pos end]} (meta el)]
     (when el
-      #_(when-not (number? pos)
-          (prn "NO META" el))
-      #_(when-not (number? (:pos (meta (first forms))))
-          (prn "NO META" (first forms)))
-      #_(when-not (number? (:end (meta (last forms))))
-          (prn "NO META" (last forms)))
+      (when-not (number? pos)
+        (prn "NO META" el))
+      (when-not (number? (:pos (meta (first forms))))
+        (prn "NO META" (first forms)))
+      (when-not (number? (:end (meta (last forms))))
+        (prn "NO META" (last forms)))
       (cond
         (< idx (:pos (meta (first forms))))
         nil
@@ -74,9 +74,10 @@
         (< end idx)
         (at-pos (upper-half forms mid) idx)
         (<= pos idx end)
-        (if-let [ch (children el)]
-          (cons el (at-pos ch idx))
-          [el])))))
+        (let [ch (children el)]
+          (if (seq ch)
+            (cons el (at-pos ch idx))
+            [el]))))))
 
 (defn char-array-reader [arr offset count doc-offset]
   (tools-reader/pos-push-back-reader

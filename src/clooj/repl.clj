@@ -26,15 +26,21 @@
   (resolve (:repl (gui/visiting-document comp-id))))
 
 (defn eval-outer-sexp [{:keys [comp-id] :as o}]
-  (let [buf-id (gui/visiting-document-id comp-id)
-        parse-tree (document/parse-tree-at-caret buf-id)
+  (let [doc-id (gui/visiting-document-id comp-id)
+        parse-tree (document/parse-tree-at-caret doc-id)
         {:keys [pos end]} (meta (first parse-tree))
         repl (comp-id->repl comp-id)]
     (proto/evaluate (:repl repl)
-                    (document/document-ns buf-id)
+                    (document/document-ns doc-id)
                     (text-area/get-text-str (gui/resolve comp-id)
                                             pos (inc (- end pos))))))
 
+(defn eval-document [{:keys [comp-id] :as o}]
+  (let [doc-id (gui/visiting-document-id comp-id)
+        repl (comp-id->repl comp-id)]
+    (proto/evaluate (:repl repl)
+                    (document/document-ns doc-id)
+                    (text-area/get-text-str (gui/resolve comp-id)))))
 
 (comment
   (let [{:keys [comp-id]} o]

@@ -10,7 +10,10 @@
    [clooj.brackets :as brackets]
    [clooj.clj-inspector.jars :as jars]
    [clooj.clj-inspector.vars :as vars]
+   [clooj.document :as document]
+   [clooj.gui :as gui]
    [clooj.protocols :as proto]
+   [clooj.repl :as repl]
    [clooj.text-area :as text-area]
    [clooj.utils :as utils])
   (:import
@@ -334,15 +337,24 @@
     (when-not (str/blank? t)
       t)))
 
-(defn arglist-from-caret-pos [comp-id ns text pos]
-  #_  (when-let [token (token-from-caret-pos text pos)]
-        (let [token (symbol token)]
-          (if-let [s (get special-forms token)]
-            s
-            (let [repl @(:repl app)
-                  ns-info (proto/ns-info repl (symbol ns))
-                  {:keys [ns name arglists] :as var-info} (resolve-var-info repl ns-info token)]
-              (str/join " " (map #(cons (symbol (str ns) (str name)) %) arglists)))))))
+(defn arglist-from-caret-pos [comp-id -ns text pos]
+  (let [doc-id (:document (gui/config comp-id))
+        doc (document/resolve doc-id)
+        repl (:repl (repl/resolve (:repl doc)))
+        ns-info (proto/ns-info repl (symbol -ns))
+        forms (document/parse-tree-at-pos doc-id pos)
+        var-info (some (fn [f]
+                         (let [var-info (cond
+                                          (symbol? f)
+                                          (resolve-var-info repl ns-info f)
+                                          (and (list? f) (symbol? (first f)))
+                                          (resolve-var-info repl ns-info (first f)))]
+                           (when (:arglists var-info)
+                             var-info)))
+                       (reverse forms))]
+    (when var-info
+      (let [{:keys [ns name arglists]} var-info]
+        (str/join " " (map #(cons (symbol (str ns) (str name)) %) arglists))))))
 
 (defn show-tab-help [app text-comp index-change-fn]
   (def show-tab-help* [app text-comp index-change-fn])
@@ -385,7 +397,7 @@
           (text-area/focus? t2) t2)))
 
 (defn setup-completion-list [^JList l app]
-  (def  setup-completion-list* [^JList l app])
+  (def setup-completion-list* [^JList l app])
   (doto l
     (.setBackground (Color. 0xFF 0xFF 0xE8))
     (.setFocusable false)

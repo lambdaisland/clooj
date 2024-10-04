@@ -42,7 +42,8 @@
    {:default
     {:font-size/increase (action clooj.font-size/increase)
      :font-size/decrease (action clooj.font-size/decrease)
-     :eval/last-sexp (action clooj.repl/eval-outer-sexp)}}))
+     :eval/document      (action clooj.repl/eval-document)
+     :eval/outer-sexp    (action clooj.repl/eval-outer-sexp)}}))
 
 
 

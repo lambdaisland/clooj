@@ -101,7 +101,8 @@
 
 (defn doc-for-file [^File file syntax-style]
   (let [doc (new-doc syntax-style)]
-    (.insertString doc 0 ^String (slurp file) nil)
+    (when (not (.isDirectory file))
+      (.insertString doc 0 ^String (slurp file) nil))
     doc))
 
 (defn with-parse-tree [{:keys [doc syntax-style] :as buf-opts}]
@@ -181,8 +182,12 @@
      (close [] nil))
    true))
 
+(defn parse-tree-at-pos [buf-id pos]
+  (let [{:keys [parse-tree]} (resolve buf-id)]
+    (parse-tree/at-pos @parse-tree pos)))
+
 (defn parse-tree-at-caret [buf-id]
-  (let [{:keys [caret parse-tree repl]} (resolve buf-id)]
+  (let [{:keys [caret parse-tree]} (resolve buf-id)]
     (parse-tree/at-pos @parse-tree caret)))
 
 (defn document-ns [buf-id]
