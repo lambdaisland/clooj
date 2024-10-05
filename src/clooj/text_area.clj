@@ -7,7 +7,7 @@
    (java.awt Point)
    (javax.swing JViewport)
    (javax.swing.event CaretListener DocumentListener)
-   (javax.swing.text DocumentFilter DocumentFilter$FilterBypass)
+   (javax.swing.text DocumentFilter DocumentFilter$FilterBypass JTextComponent)
    (org.fife.ui.rsyntaxtextarea AbstractTokenMaker RSyntaxDocument RSyntaxTextArea TokenMakerFactory)))
 
 (comment
@@ -221,3 +221,15 @@
 
 (defn set-doc-filter [^RSyntaxDocument doc doc-filter]
   (.setDocumentFilter doc doc-filter))
+
+(defn selection-start [^JTextComponent comp]
+  (.getSelectionStart comp))
+
+(defn selection-end [^JTextComponent comp]
+  (.getSelectionEnd comp))
+
+(defn set-selection-start [^JTextComponent comp pos]
+  (.setSelectionStart comp pos))
+
+(defn set-selection-end [^JTextComponent comp pos]
+  (.setSelectionEnd comp pos))

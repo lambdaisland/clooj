@@ -164,7 +164,12 @@
    :eval
    (keymap
     {"shift cmd1 ENTER" :eval/document
-     "cmd1 ENTER" :eval/outer-sexp})})
+     "cmd1 ENTER" :eval/outer-sexp})
+
+   :selection
+   (keymap
+    {"shift ctrl UP" :selection/grow})
+   })
 
 ;; (def text-area (@clooj.main/current-app :repl-in-text-area))
 ;; (def default-map (focus-map text-area))

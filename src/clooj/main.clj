@@ -9,6 +9,7 @@
   (:require
    [clojure.set]
    [clojure.string :as str]
+   [clooj.actions :as actions]
    [clooj.brackets :as brackets]
    [clooj.document :as document]
    [clooj.gui :as gui]
@@ -521,9 +522,11 @@
       (send-off temp-file-manager (fn [_] 0))
       (.delete ft)
       (.repaint ^JTree (:docs-tree app)))
-    (catch Exception e (JOptionPane/showMessageDialog
-                        nil "Unable to save file."
-                        "Oops" JOptionPane/ERROR_MESSAGE))))
+    (catch Exception e
+      (println e)
+      (JOptionPane/showMessageDialog
+       nil "Unable to save file."
+       "Oops" JOptionPane/ERROR_MESSAGE))))
 
 (def ^String project-clj-text (.trim
                                "
@@ -706,6 +709,7 @@
 ;; startup
 
 (defn initial-setup []
+  (swap! state/action-maps assoc :default actions/default-actions)
   (repl/start-internal-repl)
   (document/ensure-document "*scratch*" "text/clojure")
   (document/associate-repl "*scratch*" :clooj.repl/internal))

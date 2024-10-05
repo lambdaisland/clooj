@@ -8,19 +8,19 @@
    {:doc-text-area      {:middleware  {}
                          :font        ["Iosevka Fixed SS14" 19]
                          :line-wrap   false
-                         :keymaps     {:focus [:eval :font-sizing]}
+                         :keymaps     {:focus [:selection :eval :font-sizing]}
                          :action-maps [:default]}
     :repl-out-text-area {:middleware  {}
                          :font        ["Iosevka Fixed SS14" 12]
                          :line-wrap   true
-                         :keymaps     {:focus [:font-sizing]}
+                         :keymaps     {:focus [:selection :font-sizing]}
                          :editable?   false
                          :action-maps [:default]
                          :document    "*Clooj Internal REPL*"}
     :repl-in-text-area  {:middleware  {}
                          :font        ["Iosevka Fixed SS14" 12]
                          :line-wrap   true
-                         :keymaps     {:focus [:font-sizing]}
+                         :keymaps     {:focus [:selection :font-sizing]}
                          :action-maps [:default]}
     :arglist-label      {:font ["Monospaced" 12]}}))
 
@@ -33,29 +33,13 @@
 (defonce keymaps
   (atom {}))
 
-(defmacro action [var-name]
-  `(fn [o#]
-     ((requiring-resolve '~var-name) o#)))
-
 (defonce action-maps
-  (atom
-   {:default
-    {:font-size/increase (action clooj.font-size/increase)
-     :font-size/decrease (action clooj.font-size/decrease)
-     :eval/document      (action clooj.repl/eval-document)
-     :eval/outer-sexp    (action clooj.repl/eval-outer-sexp)}}))
+  (atom {}))
 
 
 
 (comment
   (keys @documents)
-
-  (reset! action-maps
-
-          {:default
-           {:font-size/increase (action clooj.font-size/increase)
-            :font-size/decrease (action clooj.font-size/decrease)
-            :eval/last-sexp (action clooj.repl/eval-outer-sexp)}})
 
   (:doc-text-area @component-config)
 
