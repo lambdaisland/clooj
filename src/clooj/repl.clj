@@ -1,8 +1,8 @@
 (ns clooj.repl
   (:refer-clojure :exclude [resolve])
   (:require
-   [clooj.document :as document]
-   [clooj.gui :as gui]
+   [casa.squid.acrylic.document :as document]
+   [casa.squid.acrylic.gui :as gui]
    [clooj.protocols :as proto]
    [clooj.repl.internal :as internal]
    [clooj.state :as state]

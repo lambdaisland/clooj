@@ -9,10 +9,10 @@
   (:require
    [clojure.set]
    [clojure.string :as str]
-   [clooj.actions :as actions]
+   [casa.squid.acrylic.actions :as actions]
    [clooj.brackets :as brackets]
-   [clooj.document :as document]
-   [clooj.gui :as gui]
+   [casa.squid.acrylic.document :as document]
+   [casa.squid.acrylic.gui :as gui]
    [clooj.help :as help]
    [clooj.highlighting :as highlighting]
    [clooj.indent :as indent]

@@ -1,0 +1,7 @@
+#!/bin/bash
+
+NS="$1"
+FILE="$(echo ${NS} | sed 's/\./\//g')"
+
+mv "src/clooj/${FILE}.clj" "src/casa/squid/acrylic/${FILE}.clj"
+sed "s/clooj\.${NS}/casa\.squid\.acrylic\.${NS}/g" -i src/**/*.clj

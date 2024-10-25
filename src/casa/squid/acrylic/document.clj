@@ -1,4 +1,6 @@
-(ns clooj.document
+(ns casa.squid.acrylic.document
+  "Work with Documents, i.e. open files, in the form of RSyntaxDocument
+  instances."
   (:refer-clojure :exclude [resolve])
   (:require
    [clojure.java.io :as io]

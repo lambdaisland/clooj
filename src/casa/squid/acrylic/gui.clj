@@ -1,7 +1,9 @@
-(ns clooj.gui
+(ns casa.squid.acrylic.gui
+  "Registry of GUI components, and common mechanisms to operate on them and handle
+  their configuration."
   (:refer-clojure :exclude [resolve])
   (:require
-   [clooj.document :as document]
+   [casa.squid.acrylic.document :as document]
    [clooj.keymaps :as keymaps]
    [clooj.state :as state]
    [clooj.text-area :as text-area]

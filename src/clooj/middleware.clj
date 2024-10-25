@@ -1,6 +1,6 @@
 (ns clooj.middleware
   (:require
-   [clooj.gui :as gui]
+   [casa.squid.acrylic.gui :as gui]
    [clooj.state :as state]
    [clooj.text-area :as text-area]))
 
