@@ -148,7 +148,7 @@
                     :file         file
                     :syntax-style syntax-style
                     :doc          (doc-for-file file syntax-style)
-                    :repl         :clooj.repl/internal})))))
+                    :repl         :casa.squid.acrylic.repl/internal})))))
      path)))
 
 (defn visit-document [^RSyntaxTextArea text-area buf-name]

@@ -4,7 +4,7 @@
    [clooj.analysis.parse-tree :as parse-tree]
    [casa.squid.acrylic.document :as doc]
    [casa.squid.acrylic.gui :as gui]
-   [clooj.repl :as repl]
+   [casa.squid.acrylic.repl :as repl]
    [casa.squid.acrylic.state :as state]
    [clooj.text-area :as text-area])
   (:import

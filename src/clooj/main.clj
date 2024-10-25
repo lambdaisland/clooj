@@ -20,7 +20,7 @@
    [casa.squid.acrylic.middleware :as mw]
    [clooj.navigate :as navigate]
    [clooj.project :as project]
-   [clooj.repl :as repl]
+   [casa.squid.acrylic.repl :as repl]
    [clooj.repl.main :as repl-main]
    [clooj.repl.output :as repl-output]
    [clooj.search :as search]
@@ -713,7 +713,7 @@
   (swap! state/keymaps merge keymaps/default-keymaps)
   (repl/start-internal-repl)
   (document/ensure-document "*scratch*" "text/clojure")
-  (document/associate-repl "*scratch*" :clooj.repl/internal))
+  (document/associate-repl "*scratch*" :casa.squid.acrylic.repl/internal))
 
 (defn setup-uncaught-exception-handler []
   (Thread/setDefaultUncaughtExceptionHandler

@@ -13,7 +13,7 @@
    [casa.squid.acrylic.document :as document]
    [casa.squid.acrylic.gui :as gui]
    [clooj.protocols :as proto]
-   [clooj.repl :as repl]
+   [casa.squid.acrylic.repl :as repl]
    [clooj.text-area :as text-area]
    [clooj.utils :as utils])
   (:import

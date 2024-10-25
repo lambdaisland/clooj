@@ -1,4 +1,4 @@
-(ns clooj.repl
+(ns casa.squid.acrylic.repl
   (:refer-clojure :exclude [resolve])
   (:require
    [casa.squid.acrylic.document :as document]
