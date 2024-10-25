@@ -1,4 +1,4 @@
-(ns clooj.text-area
+(ns casa.squid.acrylic.text-area
   (:require
    [clojure.string :as str]
    [casa.squid.acrylic.state :as state]

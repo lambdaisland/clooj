@@ -7,7 +7,7 @@
    [clojure.string :as str]
    [clooj.analysis.parse-tree :as parse-tree]
    [casa.squid.acrylic.state :as state]
-   [clooj.text-area :as text-area])
+   [casa.squid.acrylic.text-area :as text-area])
   (:import
    (java.io File PrintWriter Writer)
    (org.fife.ui.rsyntaxtextarea RSyntaxDocument RSyntaxTextArea)))
@@ -211,7 +211,7 @@
 ;; {:pos 2440, :end 2526}
 ;; {:pos 2245, :end 2435}
 
-;; (clooj.text-area/get-text-str (clooj.gui/resolve :doc-text-area)
+;; (casa.squid.acrylic.text-area/get-text-str (clooj.gui/resolve :doc-text-area)
 ;;                               ;; 2440 (inc (- 2526 2440))
 ;;                               2440 (inc (- 2527 2440))
 ;;                               )

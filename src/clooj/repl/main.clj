@@ -10,7 +10,7 @@
    [clooj.project :as project]
    [clooj.repl.external :as external]
    [clooj.repl.internal :as internal]
-   [clooj.text-area :as text-area]
+   [casa.squid.acrylic.text-area :as text-area]
    [clooj.utils :as utils])
   (:import
    (clojure.lang LineNumberingPushbackReader)

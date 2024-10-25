@@ -14,7 +14,7 @@
    [casa.squid.acrylic.gui :as gui]
    [clooj.protocols :as proto]
    [casa.squid.acrylic.repl :as repl]
-   [clooj.text-area :as text-area]
+   [casa.squid.acrylic.text-area :as text-area]
    [clooj.utils :as utils])
   (:import
    (java.awt Color Point)

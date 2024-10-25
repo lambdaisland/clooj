@@ -6,7 +6,7 @@
 (ns clooj.search
   (:require
    [clooj.highlighting :as highlighting]
-   [clooj.text-area :as text-area]
+   [casa.squid.acrylic.text-area :as text-area]
    [clooj.utils :as utils])
   (:import
    (java.awt Color)

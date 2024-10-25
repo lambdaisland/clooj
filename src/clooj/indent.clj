@@ -9,7 +9,7 @@
    [clooj.brackets :as brackets]
    [casa.squid.acrylic.middleware :as mw]
    [casa.squid.acrylic.state :as state]
-   [clooj.text-area :as text-area]
+   [casa.squid.acrylic.text-area :as text-area]
    [clooj.utils :as utils])
   (:import
    (org.fife.ui.rsyntaxtextarea RSyntaxTextArea)))

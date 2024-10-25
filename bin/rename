@@ -1,7 +1,7 @@
 #!/bin/zsh
 
 NS="$1"
-FILE="$(echo ${NS} | sed 's/\./\//g')"
+FILE="$(echo ${NS} | sed 's/\./\//g' | sed 's/-/_/g')"
 
 mv "src/clooj/${FILE}.clj" "src/casa/squid/acrylic/${FILE}.clj"
 sed "s/clooj\.${NS}/casa\.squid\.acrylic\.${NS}/g" -i src/**/*.clj

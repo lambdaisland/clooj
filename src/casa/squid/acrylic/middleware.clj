@@ -3,7 +3,7 @@
   (:require
    [casa.squid.acrylic.gui :as gui]
    [casa.squid.acrylic.state :as state]
-   [clooj.text-area :as text-area]))
+   [casa.squid.acrylic.text-area :as text-area]))
 
 (defn wrap-match-pair [replace comp-id]
   (fn [offset len text attrs]

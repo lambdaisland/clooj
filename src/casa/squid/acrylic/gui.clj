@@ -6,7 +6,7 @@
    [casa.squid.acrylic.document :as document]
    [casa.squid.acrylic.keymaps :as keymaps]
    [casa.squid.acrylic.state :as state]
-   [clooj.text-area :as text-area]
+   [casa.squid.acrylic.text-area :as text-area]
    [clooj.utils :as utils])
   (:import
    (java.awt Font)

@@ -126,7 +126,7 @@
                 (into (vec unchanged) new))))))
 
 #_
-(let [doc (clooj.text-area/doc (clooj.gui/resolve :doc-text-area))]
+(let [doc (casa.squid.acrylic.text-area/doc (clooj.gui/resolve :doc-text-area))]
   (run!
    #(.removeDocumentListener doc %)
    (filter #(re-find #"parse_tree" (str (class %)))
@@ -169,9 +169,9 @@
 
 #_
 (.getDocumentListeners
- (clooj.text-area/doc (clooj.gui/resolve :doc-text-area)))
+ (casa.squid.acrylic.text-area/doc (clooj.gui/resolve :doc-text-area)))
 #_
-(let [doc (clooj.text-area/doc (clooj.gui/resolve :doc-text-area))]
+(let [doc (casa.squid.acrylic.text-area/doc (clooj.gui/resolve :doc-text-area))]
 
   (run!
    #(.removeDocumentListener doc %)
@@ -182,13 +182,13 @@
 (doseq [l
         (drop 5
               (.getDocumentListeners
-               (clooj.text-area/doc (clooj.gui/resolve :doc-text-area))))]
-  (.removeDocumentListener  (clooj.text-area/doc (clooj.gui/resolve :doc-text-area))
+               (casa.squid.acrylic.text-area/doc (clooj.gui/resolve :doc-text-area))))]
+  (.removeDocumentListener  (casa.squid.acrylic.text-area/doc (clooj.gui/resolve :doc-text-area))
                             l))
 
 #_
 (def x
-  (document-parse-tree (clooj.text-area/doc (clooj.gui/resolve :doc-text-area))))
+  (document-parse-tree (casa.squid.acrylic.text-area/doc (clooj.gui/resolve :doc-text-area))))
 #_
 (last @x)
 

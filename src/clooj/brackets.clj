@@ -7,7 +7,7 @@
   (:require
    [clojure.string :as str]
    [clooj.utils :as utils]
-   [clooj.text-area :as text-area])
+   [casa.squid.acrylic.text-area :as text-area])
   (:import
    (javax.swing.text JTextComponent)))
 

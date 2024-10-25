@@ -26,7 +26,7 @@
    [clooj.search :as search]
    [clooj.settings :as settings]
    [casa.squid.acrylic.state :as state]
-   [clooj.text-area :as text-area]
+   [casa.squid.acrylic.text-area :as text-area]
    [clooj.utils :as utils])
   (:import
    (java.awt AWTEvent Color Font Toolkit Window)

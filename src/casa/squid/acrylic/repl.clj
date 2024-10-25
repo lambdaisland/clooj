@@ -6,7 +6,7 @@
    [clooj.protocols :as proto]
    [clooj.repl.internal :as internal]
    [casa.squid.acrylic.state :as state]
-   [clooj.text-area :as text-area]))
+   [casa.squid.acrylic.text-area :as text-area]))
 
 (def internal-repl-document-name "*Clooj Internal REPL*")
 
