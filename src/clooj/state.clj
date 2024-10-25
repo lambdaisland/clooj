@@ -8,7 +8,7 @@
    {:doc-text-area      {:middleware  {}
                          :font        ["Iosevka Fixed SS14" 19]
                          :line-wrap   false
-                         :keymaps     {:focus [:selection :eval :font-sizing]}
+                         :keymaps     {:focus [:file :selection :eval :font-sizing]}
                          :action-maps [:default]}
     :repl-out-text-area {:middleware  {}
                          :font        ["Iosevka Fixed SS14" 12]

@@ -653,7 +653,7 @@
     (let [file-menu
           (utils/add-menu menu-bar "File" "F"
                           ["New" "N" "cmd1 N" #(create-file app (first (project/get-selected-projects app)) "")]
-                          ["Save" "S" "cmd1 S" #(save-file app)]
+                          ;; ["Save" "S" "cmd1 S" #(save-file app)]
                           ["Move/Rename" "M" nil #(rename-file app)]
                           ["Revert" "R" nil #(revert-file app)]
                           ["Delete" nil nil #(delete-file app)])]
@@ -710,6 +710,7 @@
 
 (defn initial-setup []
   (swap! state/action-maps assoc :default actions/default-actions)
+  (swap! state/keymaps merge keymaps/default-keymaps)
   (repl/start-internal-repl)
   (document/ensure-document "*scratch*" "text/clojure")
   (document/associate-repl "*scratch*" :clooj.repl/internal))
@@ -746,7 +747,6 @@
         (project/load-expanded-paths tree)
         (when (false? (project/load-tree-selection tree))
           (repl-main/start-repl app nil))))
-  (swap! state/keymaps merge keymaps/default-keymaps)
   (gui/setup-config-watch))
 
 (defn -show []
