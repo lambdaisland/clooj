@@ -3,8 +3,14 @@ clooj, a lightweight IDE for clojure
 ---
 
 ### the application
-clooj is a small, simple IDE (integrated development environment) for the [clojure](http://clojure.org) programming language, [available for free download](http://www.mediafire.com/?kxa2an0k0ings). clooj is written entirely in clojure and uses a swing-based GUI. It is cross-platform (assuming Java 1.6 or 1.7 has been installed on your operating system), and runs as a standalone application. The application is a single jar file that can be launched by double-clicking its file icon or by running
-java -jar clooj-XXX-STANDALONE.jar from the command line.
+clooj is a small, simple IDE (integrated development environment) for the
+[clojure](http://clojure.org) programming language, [available for free
+download](http://www.mediafire.com/?kxa2an0k0ings). clooj is written entirely in
+clojure and uses a swing-based GUI. It is cross-platform (assuming Java 1.6 or
+1.7 has been installed on your operating system), and runs as a standalone
+application. The application is a single jar file that can be launched by
+double-clicking its file icon or by running java -jar clooj-XXX-STANDALONE.jar
+from the command line.
 
 ### the layout
 The clooj window contains three columns. The left-most column is a tree showing clojure projects and the source files they contain. The middle column is the source file editor. The right column displays inputs and outputs of clojure REPLs (read-evaluate-print loops).
