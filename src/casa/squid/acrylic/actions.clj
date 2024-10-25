@@ -1,7 +1,7 @@
 (ns casa.squid.acrylic.actions
   "Implementation of the default action map"
   (:require
-   [clooj.analysis.parse-tree :as parse-tree]
+   [casa.squid.acrylic.analysis.parse-tree :as parse-tree]
    [casa.squid.acrylic.document :as doc]
    [casa.squid.acrylic.gui :as gui]
    [casa.squid.acrylic.repl :as repl]

@@ -1,4 +1,4 @@
-(ns clooj.analysis.tools-reader
+(ns casa.squid.acrylic.analysis.tools-reader
   "Butchered version of clojure.tools.reader
   - Attaches pos/end metadata to everything
   - Wraps types that don't support metadata

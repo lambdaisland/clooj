@@ -1,7 +1,7 @@
-(ns clooj.analysis.parse-tree
+(ns casa.squid.acrylic.analysis.parse-tree
   (:require
    [clojure.tools.reader.reader-types :as reader-types]
-   [clooj.analysis.tools-reader :as tools-reader]
+   [casa.squid.acrylic.analysis.tools-reader :as tools-reader]
    [clooj.utils :as util])
   (:import
    (java.io CharArrayReader)
@@ -22,12 +22,12 @@
 
 (defn children [el]
   (cond
-    (instance? clooj.analysis.tools_reader.MetaNode el)
+    (instance? casa.squid.acrylic.analysis.tools_reader.MetaNode el)
     [(:m el) (:o el)]
-    (instance? clooj.analysis.tools_reader.DiscardNode el)
+    (instance? casa.squid.acrylic.analysis.tools_reader.DiscardNode el)
     [(:o el)]
-    (or (instance? clooj.analysis.tools_reader.CommentNode el)
-        (instance? clooj.analysis.tools_reader.LiteralNode el))
+    (or (instance? casa.squid.acrylic.analysis.tools_reader.CommentNode el)
+        (instance? casa.squid.acrylic.analysis.tools_reader.LiteralNode el))
     nil
     (and (sequential? el) (seq el))
     (vec el)
@@ -38,13 +38,13 @@
 
 (defn value [el]
   (cond
-    (instance? clooj.analysis.tools_reader.MetaNode el)
+    (instance? casa.squid.acrylic.analysis.tools_reader.MetaNode el)
     (with-meta (:o el) (:m el))
-    (instance? clooj.analysis.tools_reader.DiscardNode el)
+    (instance? casa.squid.acrylic.analysis.tools_reader.DiscardNode el)
     nil
-    (instance? clooj.analysis.tools_reader.CommentNode el)
+    (instance? casa.squid.acrylic.analysis.tools_reader.CommentNode el)
     nil
-    (instance? clooj.analysis.tools_reader.LiteralNode el)
+    (instance? casa.squid.acrylic.analysis.tools_reader.LiteralNode el)
     (:o el)
     :else
     el))

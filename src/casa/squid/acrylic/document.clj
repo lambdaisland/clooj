@@ -5,7 +5,7 @@
   (:require
    [clojure.java.io :as io]
    [clojure.string :as str]
-   [clooj.analysis.parse-tree :as parse-tree]
+   [casa.squid.acrylic.analysis.parse-tree :as parse-tree]
    [casa.squid.acrylic.state :as state]
    [casa.squid.acrylic.text-area :as text-area])
   (:import
