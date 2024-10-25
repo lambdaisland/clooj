@@ -1,3 +1,3 @@
 (ns clooj.actions.font-size
-  (:require [clooj.state :as state]))
+  (:require [casa.squid.acrylic.state :as state]))
 

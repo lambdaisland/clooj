@@ -1,7 +1,7 @@
 (ns clooj.text-area
   (:require
    [clojure.string :as str]
-   [clooj.state :as state]
+   [casa.squid.acrylic.state :as state]
    [clooj.utils :as util])
   (:import
    (java.awt Point)

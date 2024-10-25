@@ -1,7 +1,8 @@
-(ns clooj.middleware
+(ns casa.squid.acrylic.middleware
+  "Document middleware, works on operations coming from the documentfilter."
   (:require
    [casa.squid.acrylic.gui :as gui]
-   [clooj.state :as state]
+   [casa.squid.acrylic.state :as state]
    [clooj.text-area :as text-area]))
 
 (defn wrap-match-pair [replace comp-id]

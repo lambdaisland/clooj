@@ -1,4 +1,5 @@
-(ns clooj.state)
+(ns casa.squid.acrylic.state
+  "Central editor state")
 
 (defonce component-registry
   (atom {}))

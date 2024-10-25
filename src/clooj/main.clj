@@ -17,7 +17,7 @@
    [clooj.highlighting :as highlighting]
    [clooj.indent :as indent]
    [casa.squid.acrylic.keymaps :as keymaps]
-   [clooj.middleware :as mw]
+   [casa.squid.acrylic.middleware :as mw]
    [clooj.navigate :as navigate]
    [clooj.project :as project]
    [clooj.repl :as repl]
@@ -25,7 +25,7 @@
    [clooj.repl.output :as repl-output]
    [clooj.search :as search]
    [clooj.settings :as settings]
-   [clooj.state :as state]
+   [casa.squid.acrylic.state :as state]
    [clooj.text-area :as text-area]
    [clooj.utils :as utils])
   (:import

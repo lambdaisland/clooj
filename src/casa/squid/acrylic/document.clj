@@ -6,7 +6,7 @@
    [clojure.java.io :as io]
    [clojure.string :as str]
    [clooj.analysis.parse-tree :as parse-tree]
-   [clooj.state :as state]
+   [casa.squid.acrylic.state :as state]
    [clooj.text-area :as text-area])
   (:import
    (java.io File PrintWriter Writer)

@@ -5,7 +5,7 @@
    [casa.squid.acrylic.document :as doc]
    [casa.squid.acrylic.gui :as gui]
    [clooj.repl :as repl]
-   [clooj.state :as state]
+   [casa.squid.acrylic.state :as state]
    [clooj.text-area :as text-area])
   (:import
    (java.io BufferedWriter FileOutputStream OutputStreamWriter)

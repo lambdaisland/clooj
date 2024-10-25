@@ -3,7 +3,7 @@
 
   Bridge Swing keymaps and Clojure functions, implmenent the default keymap."
   (:require
-   [clooj.state :as state]
+   [casa.squid.acrylic.state :as state]
    [clooj.utils :as util]
    [lambdaisland.data-printers :as data-printers])
   (:import

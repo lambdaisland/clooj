@@ -7,8 +7,8 @@
   (:require
    [clojure.string :as str]
    [clooj.brackets :as brackets]
-   [clooj.middleware :as mw]
-   [clooj.state :as state]
+   [casa.squid.acrylic.middleware :as mw]
+   [casa.squid.acrylic.state :as state]
    [clooj.text-area :as text-area]
    [clooj.utils :as utils])
   (:import

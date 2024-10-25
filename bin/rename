@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 
 NS="$1"
 FILE="$(echo ${NS} | sed 's/\./\//g')"
