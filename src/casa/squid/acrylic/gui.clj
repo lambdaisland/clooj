@@ -4,7 +4,7 @@
   (:refer-clojure :exclude [resolve])
   (:require
    [casa.squid.acrylic.document :as document]
-   [clooj.keymaps :as keymaps]
+   [casa.squid.acrylic.keymaps :as keymaps]
    [clooj.state :as state]
    [clooj.text-area :as text-area]
    [clooj.utils :as utils])

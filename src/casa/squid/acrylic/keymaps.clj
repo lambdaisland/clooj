@@ -1,4 +1,7 @@
-(ns clooj.keymaps
+(ns casa.squid.acrylic.keymaps
+  "Keymap infrastucture
+
+  Bridge Swing keymaps and Clojure functions, implmenent the default keymap."
   (:require
    [clooj.state :as state]
    [clooj.utils :as util]

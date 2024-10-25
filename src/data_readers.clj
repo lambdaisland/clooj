@@ -1,2 +1,2 @@
-{javax.swing/KeyStroke clooj.keymaps/keystroke}
+{javax.swing/KeyStroke casa.squid.acrylic.keymaps/keystroke}
 

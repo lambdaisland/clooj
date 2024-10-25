@@ -16,7 +16,7 @@
    [clooj.help :as help]
    [clooj.highlighting :as highlighting]
    [clooj.indent :as indent]
-   [clooj.keymaps :as keymaps]
+   [casa.squid.acrylic.keymaps :as keymaps]
    [clooj.middleware :as mw]
    [clooj.navigate :as navigate]
    [clooj.project :as project]
