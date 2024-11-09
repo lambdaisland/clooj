@@ -30,13 +30,32 @@ The source code editor offers a few simple things to make writing clojure code e
  *  Syntax highlighting (using the [RSyntaxTextArea](http://fifesoft.com/rsyntaxtextarea/) library).
 
 ### clojure projects
-Each clojure project corresponds to a project directory somewhere in the file system, containing a src directory. Inside the src directory is the source code hierarchy, composed of directories and .clj files. Note this directory structure is completely compatible with the [lein build tool](http://leiningen.org/) for clojure. We recommend the use of lein in alongside the clooj editor. Clicking different source files in the projects tree will automatically change the source file currently being edited, as well as switch the REPL to the appropriate namespace.
+Each clojure project corresponds to a project directory somewhere in the file
+system, containing a src directory. Inside the src directory is the source code
+hierarchy, composed of directories and .clj files. Note this directory structure
+is completely compatible with the [lein build tool](http://leiningen.org/) for
+clojure. We recommend the use of lein in alongside the clooj editor. Clicking
+different source files in the projects tree will automatically change the source
+file currently being edited, as well as switch the REPL to the appropriate
+namespace.
 
 ### read-evaluate-print loop
-The upper part of clooj's REPL display column shows the REPL history (inputs and outputs) and the lower part is a text area for inputting forms into REPL. clooj runs a single REPL at a time. By choosing "Restart REPL" you cause the current REPL's process to be shut down and a new REPL to be launched. The new REPL's working directory will be located in the main directory of the currently selected project. If lein is installed, the new REPL's classpath will automatically include the full lein classpath.
+The upper part of clooj's REPL display column shows the REPL history (inputs and
+outputs) and the lower part is a text area for inputting forms into REPL. clooj
+runs a single REPL at a time. By choosing "Restart REPL" you cause the current
+REPL's process to be shut down and a new REPL to be launched. The new REPL's
+working directory will be located in the main directory of the currently
+selected project. If lein is installed, the new REPL's classpath will
+automatically include the full lein classpath.
 
 ### name search, documentation and auto-completion
-clooj can help you search for functions and other names, provide documentation for these names, and auto-complete your code. (This feature is in the early stages of development.) When help is activated, a list of available names similar to the local text is shown at left. At right, documentation and source code is shown for the selected name. Press TAB or shift+TAB to browse through the list, then press ENTER to replace what you have typed with the name you have selected. Press ESC to get out of help mode.
+clooj can help you search for functions and other names, provide documentation
+for these names, and auto-complete your code. (This feature is in the early
+stages of development.) When help is activated, a list of available names
+similar to the local text is shown at left. At right, documentation and source
+code is shown for the selected name. Press TAB or shift+TAB to browse through
+the list, then press ENTER to replace what you have typed with the name you have
+selected. Press ESC to get out of help mode.
 
 ### more work needed
 clooj is a work in progress. Please post any suggestions or criticisms to the [clooj Google group](http://groups.google.com/group/clooj) or to the [github issues list](https://github.com/arthuredelstein/clooj/issues).

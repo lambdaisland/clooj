@@ -3,7 +3,8 @@
 (require
  '[lambdaisland.launchpad :as launchpad])
 
-(launchpad/main {})
+(launchpad/main
+ {})
 
 ;; Local Variables:
 ;; mode:clojure
