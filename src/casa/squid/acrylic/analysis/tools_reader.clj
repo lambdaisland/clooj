@@ -49,10 +49,23 @@
    (java.util LinkedList List)
    (java.util.regex Pattern)))
 
-(defrecord MetaNode [o m])
+(defprotocol Wrapped
+  (unwrap [o]))
+
+(defrecord MetaNode [o m]
+  Wrapped
+  (unwrap [_] o))
 (defrecord DiscardNode [o])
 (defrecord CommentNode [o])
-(defrecord LiteralNode [o])
+(defrecord MapNode [o])
+(defrecord NamespacedMapNode [ns o])
+(defrecord LiteralNode [o]
+  Wrapped
+  (unwrap [_] o))
+(defrecord TaggedNode [t o]
+  Wrapped
+  (unwrap [_] o))
+(extend-protocol Wrapped Object (unwrap [o] o))
 
 (defprotocol PosReader
   (rdr-pos [this] "Current position in the document"))
@@ -93,17 +106,76 @@
     (when (instance? Closeable rdr)
       (.close ^Closeable rdr))))
 
+(deftype LineColPosPushbackReader
+    [rdr
+     ^"[Ljava.lang.Object;" buf
+     ^long buf-len
+     ^:unsynchronized-mutable ^long buf-pos
+     ^:unsynchronized-mutable ^long line
+     ^:unsynchronized-mutable ^long column
+     ^:unsynchronized-mutable line-start?
+     ^:unsynchronized-mutable prev
+     ^:unsynchronized-mutable ^long prev-column
+     ^:unsynchronized-mutable ^long reader-pos]
+  Reader
+  (read-char [reader]
+    (set! reader-pos (inc reader-pos))
+    (char
+     (if (< buf-pos buf-len)
+       (let [r (aget buf buf-pos)]
+         (set! buf-pos (inc buf-pos))
+         r)
+       (reader-types/read-char rdr))))
+  (peek-char [reader]
+    (char
+     (if (< buf-pos buf-len)
+       (aget buf buf-pos)
+       (reader-types/peek-char rdr))))
+  IPushbackReader
+  (unread [reader ch]
+    (when ch
+      (if (zero? buf-pos) (throw (RuntimeException. "Pushback document is full")))
+      (set! reader-pos (dec reader-pos))
+      (set! buf-pos (dec buf-pos))
+      (aset buf buf-pos ch)))
+  PosReader
+  (rdr-pos [reader]
+    reader-pos)
+  Closeable
+  (close [this]
+    (when (instance? Closeable rdr)
+      (.close ^Closeable rdr))))
+
 (defn ^Closeable pos-push-back-reader
   "Creates a PushbackReader from a given reader or string"
   ([rdr]
-   (pos-push-back-reader rdr))
+   (pos-push-back-reader rdr 0))
   ([rdr doc-offset]
    (PosPushbackReader.
     (reader-types/to-rdr rdr)
     (object-array 1)
-    1
-    1
-    doc-offset)))
+    1 ; buf-len
+    1 ; buf-pos
+    doc-offset ; reader-pos
+    )))
+
+(defn ^Closeable line+col+pos-push-back-reader
+  "Creates a PushbackReader from a given reader or string"
+  ([rdr]
+   (line+col+pos-push-back-reader rdr 0))
+  ([rdr doc-offset]
+   (LineColPosPushbackReader.
+    (reader-types/to-rdr rdr)
+    (object-array 1)
+    1 ; buf-len
+    1 ; buf-pos
+    1 ; line
+    1 ; column
+    true ; line-start?
+    nil ; prev
+    0 ; prev-column
+    doc-offset ; reader-pos
+    )))
 
 (set! *warn-on-reflection* true)
 
@@ -313,11 +385,7 @@
   (read-with-pos rdr
     (let [the-map (read-delimited :map \} rdr opts pending-forms)
           map-count (count the-map)]
-      (when (odd? map-count)
-        (err/throw-odd-map rdr nil nil the-map))
-      (if (zero? map-count)
-        {}
-        (RT/map (to-array the-map))))))
+      (->MapNode the-map))))
 
 (defn- read-number
   [rdr initch]
@@ -767,11 +835,7 @@
           (if (identical? ch \{)
             (let [items (read-delimited :namespaced-map \} rdr opts pending-forms)
                   [end-line end-column] (ending-line-col-info rdr)]
-              (when (odd? (count items))
-                (err/throw-odd-map rdr nil nil items))
-              (let [keys (take-nth 2 items)
-                    vals (take-nth 2 (rest items))]
-                (RT/map (to-array (mapcat list (namespace-keys (str ns) keys) vals)))))
+              (->NamespacedMapNode ns items))
             (err/throw-ns-map-no-map rdr token)))
         (err/throw-bad-ns rdr token)))))
 
@@ -876,16 +940,8 @@
   (let [tag (read* rdr true nil opts pending-forms)]
     (if-not (symbol? tag)
       (err/throw-bad-reader-tag rdr tag))
-    (if *suppress-read*
-      (tagged-literal tag (read* rdr true nil opts pending-forms))
-      (if-let [f (or (*data-readers* tag)
-                     (default-data-readers tag))]
-        (f (read* rdr true nil opts pending-forms))
-        (if (.contains (name tag) ".")
-          (read-ctor rdr tag opts pending-forms)
-          (if-let [f *default-data-reader-fn*]
-            (f tag (read* rdr true nil opts pending-forms))
-            (err/throw-unknown-reader-tag rdr tag)))))))
+    (->TaggedNode tag (read* rdr true nil opts pending-forms))
+    ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Public API
@@ -999,55 +1055,15 @@
   ([] (read *in* true nil))
   ([reader] (read reader true nil))
   ([{eof :eof :as opts :or {eof :eofthrow}} reader]
-   (when (source-logging-reader? reader)
-     (let [^StringBuilder buf (:document @(.source-log-frames ^SourceLoggingPushbackReader reader))]
-       (.setLength buf 0)))
    (read* reader (= eof :eofthrow) eof nil opts (LinkedList.)))
   ([reader eof-error? sentinel]
-   (when (source-logging-reader? reader)
-     (let [^StringBuilder buf (:document @(.source-log-frames ^SourceLoggingPushbackReader reader))]
-       (.setLength buf 0)))
    (read* reader eof-error? sentinel nil {} (LinkedList.))))
 
 (defn pos-push-back-string-reader [s]
   (pos-push-back-reader (string-reader s)))
-
-(defn read-string
-  "Reads one object from the string s.
-   Returns nil when s is nil or empty.
-
-   ***WARNING***
-   Note that read-string can execute code (controlled by *read-eval*),
-   and as such should be used only with trusted sources.
-
-   To read data structures only, use clojure.tools.reader.edn/read-string
-
-   Note that the function signature of clojure.tools.reader/read-string and
-   clojure.tools.reader.edn/read-string is not the same for eof-handling"
-  ([s]
-   (read-string {} s))
-  ([opts s]
-   (when (and s (not (identical? s "")))
-     (read opts (pos-push-back-reader (string-reader  s))))))
 
 (defmacro syntax-quote
   "Macro equivalent to the syntax-quote reader macro (`)."
   [form]
   (binding [gensym-env {}]
     (syntax-quote* form)))
-
-(defn read+string
-  "Like read, and taking the same args. reader must be a SourceLoggingPushbackReader.
-  Returns a vector containing the object read and the (whitespace-trimmed) string read."
-  ([] (read+string (source-logging-push-back-reader *in*)))
-  ([stream] (read+string stream true nil))
-  ([^SourceLoggingPushbackReader stream eof-error? eof-value]
-   (let [^StringBuilder buf (doto ^StringBuilder (:document @(.source-log-frames stream)) (.setLength 0))
-         o (log-source stream (read stream eof-error? eof-value))
-         s (.trim (str buf))]
-     [o s]))
-  ([opts ^SourceLoggingPushbackReader stream]
-   (let [^StringBuilder buf (doto ^StringBuilder (:document @(.source-log-frames stream)) (.setLength 0))
-         o (log-source stream (read opts stream))
-         s (.trim (str buf))]
-     [o s])))

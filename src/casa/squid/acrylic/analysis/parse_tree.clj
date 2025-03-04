@@ -22,9 +22,13 @@
 
 (defn children [el]
   (cond
+    (instance? casa.squid.acrylic.analysis.tools_reader.TaggedNode el)
+    [(:t el) (:o el)]
     (instance? casa.squid.acrylic.analysis.tools_reader.MetaNode el)
     [(:m el) (:o el)]
-    (instance? casa.squid.acrylic.analysis.tools_reader.DiscardNode el)
+    (or (instance? casa.squid.acrylic.analysis.tools_reader.DiscardNode el)
+        (instance? casa.squid.acrylic.analysis.tools_reader.MapNode el)
+        (instance? casa.squid.acrylic.analysis.tools_reader.NamespacedMapNode el))
     [(:o el)]
     (or (instance? casa.squid.acrylic.analysis.tools_reader.CommentNode el)
         (instance? casa.squid.acrylic.analysis.tools_reader.LiteralNode el))
@@ -191,4 +195,3 @@
   (document-parse-tree (casa.squid.acrylic.text-area/doc (clooj.gui/resolve :doc-text-area))))
 #_
 (last @x)
-
